@@ -27,8 +27,8 @@ class MT5Interface:
         self.backend_url = backend_url
         self.api_endpoint = f"{backend_url}/api/trades"
         
-        # Simulação de dados para teste (substitua pela integração real do MT5)
-        self.test_mode = True
+        # Modo de produção - conecta ao MetaTrader 5 real
+        self.test_mode = False
         
     def connect_mt5(self) -> bool:
         """Conecta ao MetaTrader 5"""
@@ -37,13 +37,22 @@ class MT5Interface:
                 logger.info("[TEST] Modo de teste ativado - simulando conexao MT5")
                 return True
             
-            # Aqui seria a conexão real com MT5
-            # import MetaTrader5 as mt5
-            # if not mt5.initialize():
-            #     logger.error("Falha ao inicializar MT5")
-            #     return False
-            # logger.info("✅ Conectado ao MetaTrader 5")
-            return True
+            # Conexão real com MetaTrader 5
+            try:
+                import MetaTrader5 as mt5
+                if not mt5.initialize():
+                    logger.error("[ERROR] Falha ao inicializar MT5 - Verifique se o MetaTrader 5 esta aberto")
+                    logger.info("[INFO] Alternativa: Executando em modo de simulacao")
+                    self.test_mode = True
+                    return True
+                logger.info("[SUCCESS] Conectado ao MetaTrader 5 real")
+                return True
+            except ImportError:
+                logger.warning("[WARNING] Biblioteca MetaTrader5 nao encontrada")
+                logger.info("[INFO] Execute: pip install MetaTrader5")
+                logger.info("[INFO] Alternativa: Executando em modo de simulacao")
+                self.test_mode = True
+                return True
             
         except Exception as e:
             logger.error(f"[ERROR] Erro ao conectar MT5: {e}")
@@ -55,9 +64,22 @@ class MT5Interface:
             if self.test_mode:
                 return self._generate_test_data(symbol)
             
-            # Aqui seria a coleta real de dados do MT5
-            # rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M15, 0, 100)
-            # return self._calculate_indicators(rates)
+            # Coleta real de dados do MT5
+            try:
+                import MetaTrader5 as mt5
+                import numpy as np
+                
+                # Coletar dados de preços (últimas 100 velas de 15 minutos)
+                rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M15, 0, 100)
+                if rates is None or len(rates) == 0:
+                    logger.warning(f"[WARNING] Nao foi possivel obter dados para {symbol}, usando simulacao")
+                    return self._generate_test_data(symbol)
+                
+                return self._calculate_real_indicators(rates, symbol)
+                
+            except ImportError:
+                logger.warning("[WARNING] MetaTrader5 nao disponivel, usando dados simulados")
+                return self._generate_test_data(symbol)
             
         except Exception as e:
             logger.error(f"[ERROR] Erro ao coletar dados: {e}")
@@ -97,6 +119,20 @@ class MT5Interface:
         
         logger.info(f"[DATA] Dados gerados para {symbol}: RSI={data['rsi']}, MACD={data['macd']}, Tendencia={data['tendencia']}")
         return data
+    
+    def _calculate_real_indicators(self, rates, symbol: str) -> Dict:
+        """Calcula indicadores técnicos reais a partir dos dados do MT5"""
+        try:
+            from indicators import calculate_all_indicators
+            data = calculate_all_indicators(rates, symbol)
+            logger.info(f"[REAL] Dados reais para {symbol}: RSI={data['rsi']}, MACD={data['macd']}, Tendencia={data['tendencia']}, Preco={data['price']}")
+            return data
+        except ImportError:
+            logger.warning("[WARNING] Modulo indicators nao encontrado, usando dados simulados")
+            return self._generate_test_data(symbol)
+        except Exception as e:
+            logger.error(f"[ERROR] Erro ao calcular indicadores reais: {e}")
+            return self._generate_test_data(symbol)
     
     def send_to_backend(self, data: Dict) -> bool:
         """Envia dados para o backend"""
@@ -314,44 +350,77 @@ class MT5Interface:
                     'details': order_details
                 }
 
-            # --- Lógica de execução real com MetaTrader5 ---
-            # import MetaTrader5 as mt5
-            #
-            # symbol_info = mt5.symbol_info(asset)
-            # if symbol_info is None:
-            #     return {'status': 'error', 'message': f'Ativo {asset} não encontrado'}
-            #
-            # order_type_map = {'BUY': mt5.ORDER_TYPE_BUY, 'SELL': mt5.ORDER_TYPE_SELL}
-            # order_type = order_type_map.get(action)
-            #
-            # if order_type is None:
-            #     return {'status': 'error', 'message': f'Ação inválida: {action}'}
-            #
-            # price = mt5.symbol_info_tick(asset).ask if action == 'BUY' else mt5.symbol_info_tick(asset).bid
-            #
-            # request = {
-            #     "action": mt5.TRADE_ACTION_DEAL,
-            #     "symbol": asset,
-            #     "volume": float(volume),
-            #     "type": order_type,
-            #     "price": price,
-            #     "sl": float(stop_loss) if stop_loss else 0.0,
-            #     "tp": float(take_profit) if take_profit else 0.0,
-            #     "magic": 202401,
-            #     "comment": "Auto-Trader AI Order",
-            #     "type_time": mt5.ORDER_TIME_GTC,
-            #     "type_filling": mt5.ORDER_FILLING_IOC,
-            # }
-            #
-            # result = mt5.order_send(request)
-            #
-            # if result.retcode != mt5.TRADE_RETCODE_DONE:
-            #     logger.error(f"[MT5] Falha ao enviar ordem: {result.comment}")
-            #     return {'status': 'error', 'message': result.comment, 'retcode': result.retcode}
-            #
-            # logger.info(f"[MT5] Ordem {result.order} executada com sucesso.")
-            # return {'status': 'success', 'message': 'Ordem executada com sucesso', 'orderId': result.order}
-            # --- Fim da lógica real ---
+            # Lógica de execução real com MetaTrader5
+            try:
+                import MetaTrader5 as mt5
+                
+                # Verificar se o símbolo existe
+                symbol_info = mt5.symbol_info(asset)
+                if symbol_info is None:
+                    logger.error(f"[MT5] Ativo {asset} nao encontrado")
+                    return {'status': 'error', 'message': f'Ativo {asset} nao encontrado'}
+
+                # Verificar se o símbolo está visível no Market Watch
+                if not symbol_info.visible:
+                    logger.info(f"[MT5] Adicionando {asset} ao Market Watch")
+                    if not mt5.symbol_select(asset, True):
+                        return {'status': 'error', 'message': f'Falha ao adicionar {asset} ao Market Watch'}
+
+                # Mapear ação para tipo de ordem
+                order_type_map = {'BUY': mt5.ORDER_TYPE_BUY, 'SELL': mt5.ORDER_TYPE_SELL}
+                order_type = order_type_map.get(action)
+
+                if order_type is None:
+                    return {'status': 'error', 'message': f'Acao invalida: {action}'}
+
+                # Obter preço atual
+                tick = mt5.symbol_info_tick(asset)
+                if tick is None:
+                    return {'status': 'error', 'message': f'Nao foi possivel obter preco para {asset}'}
+                
+                price = tick.ask if action == 'BUY' else tick.bid
+
+                # Preparar requisição de ordem
+                request = {
+                    "action": mt5.TRADE_ACTION_DEAL,
+                    "symbol": asset,
+                    "volume": float(volume),
+                    "type": order_type,
+                    "price": price,
+                    "sl": float(stop_loss) if stop_loss else 0.0,
+                    "tp": float(take_profit) if take_profit else 0.0,
+                    "magic": 202401,
+                    "comment": "Auto-Trader AI Order",
+                    "type_time": mt5.ORDER_TIME_GTC,
+                    "type_filling": mt5.ORDER_FILLING_IOC,
+                }
+
+                # Enviar ordem
+                result = mt5.order_send(request)
+
+                if result.retcode != mt5.TRADE_RETCODE_DONE:
+                    logger.error(f"[MT5] Falha ao enviar ordem: {result.comment}")
+                    return {
+                        'status': 'error', 
+                        'message': result.comment, 
+                        'retcode': result.retcode,
+                        'details': request
+                    }
+
+                logger.info(f"[MT5] Ordem {result.order} executada com sucesso - {action} {volume} {asset} a {price}")
+                return {
+                    'status': 'success', 
+                    'message': 'Ordem executada com sucesso no MT5', 
+                    'orderId': result.order,
+                    'price': price,
+                    'volume': volume,
+                    'details': request
+                }
+                
+            except ImportError:
+                logger.warning("[WARNING] MetaTrader5 nao disponivel, simulando execucao")
+                self.test_mode = True
+                return self.execute_mt5_order(order_details)  # Recursão para simular
 
         except Exception as e:
             logger.error(f"[MT5-SIM] Erro ao executar ordem: {e}")

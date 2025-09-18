@@ -1,4 +1,10 @@
-# Auto-Trader com Inteligência Artificial
+# 🤖 Auto-Trader com Inteligência Artificial
+
+## ⚠️ MODO DE PRODUÇÃO ATIVADO
+
+**🔴 ATENÇÃO: Este sistema agora executa ORDENS REAIS no MetaTrader 5!**
+
+Para configuração segura em produção, consulte: **[PRODUCTION_SETUP.md](PRODUCTION_SETUP.md)**
 
 ## 📌 Visão Geral
 
