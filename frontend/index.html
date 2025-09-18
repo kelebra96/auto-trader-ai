@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto-Trader Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="css/dashboard.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="bi bi-graph-up-arrow"></i>
+                Auto-Trader
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#dashboard" onclick="showSection('dashboard')">
+                            <i class="bi bi-speedometer2"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#trades" onclick="showSection('trades')">
+                            <i class="bi bi-list-ul"></i> Ordens
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#ai" onclick="showSection('ai')">
+                            <i class="bi bi-robot"></i> IA
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <!-- Dashboard Section -->
+        <div id="dashboard" class="section">
+            <div class="row">
+                <div class="col-12">
+                    <h2><i class="bi bi-speedometer2"></i> Dashboard</h2>
+                </div>
+            </div>
+            
+            <!-- KPI Cards -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 id="totalTrades">0</h4>
+                                    <p class="mb-0">Total de Ordens</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="bi bi-graph-up fs-1"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 id="buyOrders">0</h4>
+                                    <p class="mb-0">Ordens de Compra</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="bi bi-arrow-up-circle fs-1"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-danger text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 id="sellOrders">0</h4>
+                                    <p class="mb-0">Ordens de Venda</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="bi bi-arrow-down-circle fs-1"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 id="holdOrders">0</h4>
+                                    <p class="mb-0">Ordens Hold</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="bi bi-pause-circle fs-1"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts and Recent Trades -->
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="bi bi-bar-chart"></i> Performance por Ativo</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="assetChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="bi bi-clock-history"></i> Ordens Recentes</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="recentTrades" class="list-group list-group-flush">
+                                <!-- Trades recentes serão carregados aqui -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Trades Section -->
+        <div id="trades" class="section" style="display: none;">
+            <div class="row">
+                <div class="col-12">
+                    <h2><i class="bi bi-list-ul"></i> Ordens de Trading</h2>
+                </div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <select class="form-select" id="filterAsset">
+                        <option value="">Todos os Ativos</option>
+                        <option value="EURUSD">EURUSD</option>
+                        <option value="GBPUSD">GBPUSD</option>
+                        <option value="USDJPY">USDJPY</option>
+                        <option value="USDCAD">USDCAD</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <select class="form-select" id="filterDecision">
+                        <option value="">Todas as Decisões</option>
+                        <option value="buy">Compra</option>
+                        <option value="sell">Venda</option>
+                        <option value="hold">Hold</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <button class="btn btn-primary" onclick="loadTrades()">
+                        <i class="bi bi-arrow-clockwise"></i> Atualizar
+                    </button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Data/Hora</th>
+                                    <th>Ativo</th>
+                                    <th>Tendência</th>
+                                    <th>RSI</th>
+                                    <th>MACD</th>
+                                    <th>Decisão</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tradesTable">
+                                <!-- Trades serão carregados aqui -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Section -->
+        <div id="ai" class="section" style="display: none;">
+            <div class="row">
+                <div class="col-12">
+                    <h2><i class="bi bi-robot"></i> Comunicação com IA</h2>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="bi bi-chat-dots"></i> Enviar Mensagem</h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="aiMessageForm">
+                                <div class="mb-3">
+                                    <label for="aiMessage" class="form-label">Mensagem:</label>
+                                    <textarea class="form-control" id="aiMessage" rows="4" 
+                                              placeholder="Digite sua pergunta sobre estratégias de trading..."></textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="aiContext" class="form-label">Contexto (opcional):</label>
+                                    <input type="text" class="form-control" id="aiContext" 
+                                           placeholder="Ex: EURUSD, análise técnica...">
+                                </div>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-send"></i> Enviar
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="bi bi-chat-square-text"></i> Resposta da IA</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="aiResponse" class="border rounded p-3 bg-light" style="min-height: 200px;">
+                                <em class="text-muted">Envie uma mensagem para receber uma resposta da IA...</em>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Modal -->
+    <div class="modal fade" id="loadingModal" tabindex="-1">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-body text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Carregando...</span>
+                    </div>
+                    <p class="mt-2">Carregando...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="js/dashboard.js"></script>
+</body>
+</html>
