@@ -34,7 +34,8 @@ process.on('SIGINT', () => {
 });
 
 // Iniciar servidor
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
+  server.setTimeout(300000); // 5 minutos de timeout
   console.log(`🚀 Servidor rodando na porta ${PORT}`);
   console.log(`📊 Dashboard: http://localhost:${PORT}`);
   console.log(`🔗 API: http://localhost:${PORT}/api`);

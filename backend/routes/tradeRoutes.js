@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const tradeController = require('../controllers/tradeController');
+const tradeController = require('../controllers/simpleTradeController');
 
 // Middleware de validação básica
 const validateTradeData = (req, res, next) => {
@@ -20,13 +20,12 @@ const validateTradeData = (req, res, next) => {
 router.post('/trades', validateTradeData, tradeController.createTrade);
 router.get('/trades', tradeController.getAllTrades);
 router.get('/trades/:id', tradeController.getTradeById);
-router.put('/trades/:id/status', tradeController.updateTradeStatus);
+// router.put('/trades/:id/status', tradeController.updateTradeStatus); // Removido no controlador simplificado
 
 // Rotas do dashboard
 router.get('/dashboard/stats', tradeController.getDashboardStats);
 
-// Rotas de IA
-router.post('/ai/message', tradeController.sendMessageToAI);
+// Rotas de IA removidas (usando controlador simplificado)
 
 // Rota de health check
 router.get('/health', (req, res) => {

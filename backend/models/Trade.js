@@ -28,7 +28,7 @@ const tradeSchema = new mongoose.Schema({
   decision: {
     type: String,
     required: true,
-    enum: ['buy', 'sell', 'hold']
+    enum: ["buy", "sell", "hold", "timeout"]
   },
   aiAnalysis: {
     type: String,
@@ -57,3 +57,20 @@ tradeSchema.index({ decision: 1 });
 tradeSchema.index({ timestamp: -1 });
 
 module.exports = mongoose.model('Trade', tradeSchema);
+
+
+
+tradeSchema.add({
+  confidence: {
+    type: Number,
+    min: 0,
+    max: 1
+  },
+  sessionId: {
+    type: String,
+    index: true
+  },
+  executionDetails: {
+    type: mongoose.Schema.Types.Mixed
+  }
+});

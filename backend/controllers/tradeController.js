@@ -1,5 +1,5 @@
 const Trade = require('../models/Trade');
-const openaiService = require('../services/openaiService');
+const aiOrchestrator = require('../services/aiOrchestrator');
 
 class TradeController {
   // Criar nova ordem de trade
@@ -21,8 +21,17 @@ class TradeController {
         });
       }
 
-      // Análise com IA
-      const aiAnalysis = await openaiService.analyzeTradeData(req.body);
+      // Análise com o Orquestrador Multi-IA
+      const aiResult = await aiOrchestrator.processTradeRequest(req.body);
+
+      // Executar a ordem de trade se a decisão não for 'hold'
+      let executionResult = { status: 'skipped', reason: 'Decision was hold' };
+      if (aiResult.decision !== 'hold') {
+        executionResult = await aiOrchestrator.executeTradeOrder({
+          ...aiResult,
+          asset: ativo // Garantir que o ativo está no payload
+        });
+      }
 
       // Criar trade no banco
       const trade = new Trade({
@@ -31,18 +40,24 @@ class TradeController {
         macd,
         rsi,
         bollinger,
-        decision: aiAnalysis.decision,
-        aiAnalysis: aiAnalysis.fullAnalysis
+        decision: aiResult.decision,
+        confidence: aiResult.confidence,
+        aiAnalysis: JSON.stringify(aiResult.reasoning),
+        sessionId: aiResult.sessionId,
+        status: executionResult.status === 'success' ? 'executed' : 'pending',
+        executionDetails: executionResult
       });
 
       await trade.save();
 
       res.status(201).json({
-        message: 'Ordem criada com sucesso',
-        decision: aiAnalysis.decision,
-        confidence: aiAnalysis.confidence,
-        reasoning: aiAnalysis.reasoning,
-        tradeId: trade._id
+        message: 'Análise de trade concluída',
+        decision: aiResult.decision,
+        confidence: aiResult.confidence,
+        reasoning: aiResult.reasoning,
+        tradeId: trade._id,
+        executionStatus: executionResult.status,
+        executionMessage: executionResult.message
       });
 
     } catch (error) {
