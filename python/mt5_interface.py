@@ -34,7 +34,7 @@ class MT5Interface:
         """Conecta ao MetaTrader 5"""
         try:
             if self.test_mode:
-                logger.info("🔄 Modo de teste ativado - simulando conexão MT5")
+                logger.info("[TEST] Modo de teste ativado - simulando conexao MT5")
                 return True
             
             # Aqui seria a conexão real com MT5
@@ -46,7 +46,7 @@ class MT5Interface:
             return True
             
         except Exception as e:
-            logger.error(f"❌ Erro ao conectar MT5: {e}")
+            logger.error(f"[ERROR] Erro ao conectar MT5: {e}")
             return False
     
     def get_market_data(self, symbol: str = "EURUSD") -> Optional[Dict]:
@@ -60,7 +60,7 @@ class MT5Interface:
             # return self._calculate_indicators(rates)
             
         except Exception as e:
-            logger.error(f"❌ Erro ao coletar dados: {e}")
+            logger.error(f"[ERROR] Erro ao coletar dados: {e}")
             return None
     
     def _generate_test_data(self, symbol: str) -> Dict:
@@ -95,7 +95,7 @@ class MT5Interface:
             "source": "MT5_Simulator"
         }
         
-        logger.info(f"📊 Dados gerados para {symbol}: RSI={data['rsi']}, MACD={data['macd']}, Tendência={data['tendencia']}")
+        logger.info(f"[DATA] Dados gerados para {symbol}: RSI={data['rsi']}, MACD={data['macd']}, Tendencia={data['tendencia']}")
         return data
     
     def send_to_backend(self, data: Dict) -> bool:
@@ -115,17 +115,17 @@ class MT5Interface:
             
             if response.status_code == 201:
                 result = response.json()
-                logger.info(f"✅ Dados enviados com sucesso - Decisão: {result.get('decision', 'N/A')}")
+                logger.info(f"[SUCCESS] Dados enviados com sucesso - Decisao: {result.get('decision', 'N/A')}")
                 return True
             else:
-                logger.error(f"❌ Erro HTTP {response.status_code}: {response.text}")
+                logger.error(f"[ERROR] Erro HTTP {response.status_code}: {response.text}")
                 return False
                 
         except requests.exceptions.RequestException as e:
-            logger.error(f"❌ Erro de conexão com backend: {e}")
+            logger.error(f"[ERROR] Erro de conexao com backend: {e}")
             return False
         except Exception as e:
-            logger.error(f"❌ Erro inesperado: {e}")
+            logger.error(f"[ERROR] Erro inesperado: {e}")
             return False
     
     def test_backend_connection(self) -> bool:
@@ -133,13 +133,13 @@ class MT5Interface:
         try:
             response = requests.get(f"{self.backend_url}/api/health", timeout=10)
             if response.status_code == 200:
-                logger.info("✅ Backend está respondendo")
+                logger.info("[SUCCESS] Backend esta respondendo")
                 return True
             else:
-                logger.error(f"❌ Backend retornou status {response.status_code}")
+                logger.error(f"[ERROR] Backend retornou status {response.status_code}")
                 return False
         except Exception as e:
-            logger.error(f"❌ Erro ao testar backend: {e}")
+            logger.error(f"[ERROR] Erro ao testar backend: {e}")
             return False
     
     def run_continuous(self, interval_minutes: int = 15, symbols: list = None):
@@ -147,15 +147,15 @@ class MT5Interface:
         if symbols is None:
             symbols = ["EURUSD", "GBPUSD", "USDJPY"]
         
-        logger.info(f"🚀 Iniciando coleta contínua - Intervalo: {interval_minutes} minutos")
-        logger.info(f"📈 Símbolos monitorados: {', '.join(symbols)}")
+        logger.info(f"[START] Iniciando coleta continua - Intervalo: {interval_minutes} minutos")
+        logger.info(f"[INFO] Simbolos monitorados: {', '.join(symbols)}")
         
         if not self.connect_mt5():
-            logger.error("❌ Falha na conexão MT5 - Abortando")
+            logger.error("[ERROR] Falha na conexao MT5 - Abortando")
             return
         
         if not self.test_backend_connection():
-            logger.error("❌ Backend não está acessível - Abortando")
+            logger.error("[ERROR] Backend nao esta acessivel - Abortando")
             return
         
         cycle_count = 0
@@ -163,7 +163,7 @@ class MT5Interface:
         try:
             while True:
                 cycle_count += 1
-                logger.info(f"🔄 Ciclo {cycle_count} - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+                logger.info(f"[CYCLE] Ciclo {cycle_count} - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
                 
                 for symbol in symbols:
                     try:
@@ -173,31 +173,31 @@ class MT5Interface:
                             # Envia para backend
                             success = self.send_to_backend(data)
                             if not success:
-                                logger.warning(f"⚠️ Falha ao enviar dados para {symbol}")
+                                logger.warning(f"[WARNING] Falha ao enviar dados para {symbol}")
                         else:
-                            logger.warning(f"⚠️ Falha ao coletar dados para {symbol}")
+                            logger.warning(f"[WARNING] Falha ao coletar dados para {symbol}")
                         
                         # Pequena pausa entre símbolos
                         time.sleep(2)
                         
                     except Exception as e:
-                        logger.error(f"❌ Erro processando {symbol}: {e}")
+                        logger.error(f"[ERROR] Erro processando {symbol}: {e}")
                 
                 # Aguarda próximo ciclo
                 sleep_seconds = interval_minutes * 60
-                logger.info(f"😴 Aguardando {interval_minutes} minutos até próximo ciclo...")
+                logger.info(f"[WAIT] Aguardando {interval_minutes} minutos ate proximo ciclo...")
                 time.sleep(sleep_seconds)
                 
         except KeyboardInterrupt:
-            logger.info("🛑 Interrompido pelo usuário")
+            logger.info("[STOP] Interrompido pelo usuario")
         except Exception as e:
-            logger.error(f"❌ Erro crítico: {e}")
+            logger.error(f"[CRITICAL] Erro critico: {e}")
         finally:
-            logger.info("🏁 Finalizando interface MT5")
+            logger.info("[END] Finalizando interface MT5")
 
 def main():
     """Função principal"""
-    print("🤖 Auto-Trader MT5 Interface")
+    print("Auto-Trader MT5 Interface")
     print("=" * 40)
     
     # Configurações
@@ -209,28 +209,28 @@ def main():
     mt5_interface = MT5Interface(backend_url)
     
     # Executa teste único primeiro
-    print("\n🧪 Executando teste único...")
+    print("\n[TEST] Executando teste unico...")
     test_data = mt5_interface.get_market_data("EURUSD")
     if test_data:
-        print(f"📊 Dados de teste: {json.dumps(test_data, indent=2)}")
+        print(f"[DATA] Dados de teste: {json.dumps(test_data, indent=2)}")
         
         if mt5_interface.test_backend_connection():
             success = mt5_interface.send_to_backend(test_data)
             if success:
-                print("✅ Teste único bem-sucedido!")
+                print("[SUCCESS] Teste unico bem-sucedido!")
             else:
-                print("❌ Falha no teste único")
+                print("[ERROR] Falha no teste unico")
                 return
         else:
-            print("❌ Backend não está acessível")
+            print("[ERROR] Backend nao esta acessivel")
             return
     
     # Pergunta se deve continuar com execução contínua
-    response = input("\n🔄 Executar coleta contínua? (s/n): ").lower().strip()
+    response = input("\n[INPUT] Executar coleta continua? (s/n): ").lower().strip()
     if response in ['s', 'sim', 'y', 'yes']:
         mt5_interface.run_continuous(interval_minutes, symbols)
     else:
-        print("👋 Finalizando...")
+        print("[END] Finalizando...")
 
 if __name__ == "__main__":
     main()
@@ -363,7 +363,7 @@ class MT5Interface:
         self.flask_thread = threading.Thread(target=lambda: app.run(host='0.0.0.0', port=5000, debug=False))
         self.flask_thread.daemon = True
         self.flask_thread.start()
-        logger.info("🚀 Servidor Flask para ordens iniciado na porta 5000")
+        logger.info("[FLASK] Servidor Flask para ordens iniciado na porta 5000")
 
     def run_continuous(self, interval_minutes: int = 15, symbols: list = None):
         """Executa coleta contínua de dados e inicia o servidor de ordens."""
@@ -373,15 +373,15 @@ class MT5Interface:
         if symbols is None:
             symbols = ["EURUSD", "GBPUSD", "USDJPY"]
         
-        logger.info(f"🚀 Iniciando coleta contínua - Intervalo: {interval_minutes} minutos")
-        logger.info(f"📈 Símbolos monitorados: {', '.join(symbols)}")
+        logger.info(f"[START] Iniciando coleta continua - Intervalo: {interval_minutes} minutos")
+        logger.info(f"[INFO] Simbolos monitorados: {', '.join(symbols)}")
         
         if not self.connect_mt5():
-            logger.error("❌ Falha na conexão MT5 - Abortando")
+            logger.error("[ERROR] Falha na conexao MT5 - Abortando")
             return
         
         if not self.test_backend_connection():
-            logger.error("❌ Backend não está acessível - Abortando")
+            logger.error("[ERROR] Backend nao esta acessivel - Abortando")
             return
         
         cycle_count = 0
@@ -389,7 +389,7 @@ class MT5Interface:
         try:
             while True:
                 cycle_count += 1
-                logger.info(f"🔄 Ciclo {cycle_count} - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+                logger.info(f"[CYCLE] Ciclo {cycle_count} - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
                 
                 for symbol in symbols:
                     try:
@@ -397,23 +397,23 @@ class MT5Interface:
                         if data:
                             success = self.send_to_backend(data)
                             if not success:
-                                logger.warning(f"⚠️ Falha ao enviar dados para {symbol}")
+                                logger.warning(f"[WARNING] Falha ao enviar dados para {symbol}")
                         else:
-                            logger.warning(f"⚠️ Falha ao coletar dados para {symbol}")
+                            logger.warning(f"[WARNING] Falha ao coletar dados para {symbol}")
                         
                         time.sleep(2)
                         
                     except Exception as e:
-                        logger.error(f"❌ Erro processando {symbol}: {e}")
+                        logger.error(f"[ERROR] Erro processando {symbol}: {e}")
                 
                 sleep_seconds = interval_minutes * 60
-                logger.info(f"😴 Aguardando {interval_minutes} minutos até próximo ciclo...")
+                logger.info(f"[WAIT] Aguardando {interval_minutes} minutos ate proximo ciclo...")
                 time.sleep(sleep_seconds)
                 
         except KeyboardInterrupt:
-            logger.info("🛑 Interrompido pelo usuário")
+            logger.info("[STOP] Interrompido pelo usuario")
         finally:
-            logger.info("🏁 Finalizando interface MT5")
+            logger.info("[END] Finalizando interface MT5")
 
 # A função main e a inicialização da classe MT5Interface permanecem as mesmas.
 # A chamada a run_continuous agora também iniciará o servidor Flask.
