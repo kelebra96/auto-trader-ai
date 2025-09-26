@@ -1,0 +1,1 @@
+# Backend do Auto Trade AI / Validade Inteligente

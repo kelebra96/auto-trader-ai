@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Limpar Cache - Auto Trader AI</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .button {
+            background: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+            font-size: 16px;
+        }
+        .button:hover {
+            background: #0056b3;
+        }
+        .danger {
+            background: #dc3545;
+        }
+        .danger:hover {
+            background: #c82333;
+        }
+        .success {
+            background: #28a745;
+        }
+        .info {
+            background: #17a2b8;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧹 Limpar Cache - Auto Trader AI</h1>
+        
+        <div class="info">
+            <strong>ℹ️ Informação:</strong> Esta página ajuda a limpar completamente o cache do navegador e localStorage para resolver problemas de permissões.
+        </div>
+        
+        <div>
+            <button class="button" onclick="checkCurrentState()">🔍 Verificar Estado Atual</button>
+            <button class="button danger" onclick="clearLocalStorage()">🗑️ Limpar localStorage</button>
+            <button class="button danger" onclick="clearAllCache()">🧹 Limpar Tudo</button>
+            <button class="button success" onclick="testLogin()">🔐 Testar Login</button>
+            <button class="button" onclick="goToApp()">🚀 Ir para App</button>
+        </div>
+        
+        <div id="log" class="log"></div>
+    </div>
+
+    <script>
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.textContent += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function checkCurrentState() {
+            log('🔍 Verificando estado atual...');
+            
+            // Verificar localStorage
+            const token = localStorage.getItem('token');
+            const user = localStorage.getItem('user');
+            
+            log(`Token: ${token ? token.substring(0, 30) + '...' : 'null'}`);
+            log(`User: ${user || 'null'}`);
+            
+            // Verificar sessionStorage
+            const sessionKeys = Object.keys(sessionStorage);
+            log(`SessionStorage keys: ${sessionKeys.length > 0 ? sessionKeys.join(', ') : 'vazio'}`);
+            
+            // Verificar cookies
+            log(`Cookies: ${document.cookie || 'nenhum'}`);
+            
+            log('✅ Verificação concluída');
+        }
+
+        function clearLocalStorage() {
+            log('🗑️ Limpando localStorage...');
+            
+            const beforeKeys = Object.keys(localStorage);
+            log(`Antes: ${beforeKeys.length} itens - ${beforeKeys.join(', ')}`);
+            
+            localStorage.clear();
+            
+            const afterKeys = Object.keys(localStorage);
+            log(`Depois: ${afterKeys.length} itens`);
+            
+            log('✅ localStorage limpo');
+        }
+
+        function clearAllCache() {
+            log('🧹 Limpando tudo...');
+            
+            // Limpar localStorage
+            localStorage.clear();
+            log('✅ localStorage limpo');
+            
+            // Limpar sessionStorage
+            sessionStorage.clear();
+            log('✅ sessionStorage limpo');
+            
+            // Tentar limpar cache do service worker (se existir)
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                    for(let registration of registrations) {
+                        registration.unregister();
+                        log('✅ Service Worker removido');
+                    }
+                });
+            }
+            
+            // Tentar limpar cache da API
+            if ('caches' in window) {
+                caches.keys().then(function(names) {
+                    for (let name of names) {
+                        caches.delete(name);
+                        log(`✅ Cache ${name} removido`);
+                    }
+                });
+            }
+            
+            log('🎉 Limpeza completa realizada!');
+            log('💡 Recomendação: Feche e abra o navegador novamente');
+        }
+
+        async function testLogin() {
+            log('🔐 Testando login...');
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: 'admin@example.com',
+                        password: 'admin123'
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log('✅ Login bem-sucedido');
+                    log(`Token: ${data.access_token.substring(0, 30)}...`);
+                    log(`User: ${JSON.stringify(data.user)}`);
+                    
+                    // Salvar no localStorage
+                    localStorage.setItem('token', data.access_token);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    log('💾 Dados salvos no localStorage');
+                    
+                    // Testar permissões
+                    await testPermissions(data.access_token);
+                    
+                } else {
+                    log(`❌ Falha no login: ${response.status}`);
+                }
+                
+            } catch (error) {
+                log(`❌ Erro no login: ${error.message}`);
+            }
+        }
+
+        async function testPermissions(token) {
+            log('🔍 Testando permissões...');
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/usuarios/permissoes', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log('✅ Permissões obtidas com sucesso');
+                    log(`Permissões: ${JSON.stringify(data.permissoes)}`);
+                    log(`Cargo: ${data.cargo}`);
+                    log(`Usuário: ${JSON.stringify(data.usuario)}`);
+                    
+                    // Testar função hasPermission
+                    const permissions = data.permissoes;
+                    const hasAll = permissions.includes('all');
+                    log(`Has 'all' permission: ${hasAll}`);
+                    
+                    if (hasAll) {
+                        log('🎉 TUDO FUNCIONANDO CORRETAMENTE!');
+                    } else {
+                        log('⚠️ Permissão "all" não encontrada');
+                    }
+                    
+                } else {
+                    log(`❌ Falha ao obter permissões: ${response.status}`);
+                }
+                
+            } catch (error) {
+                log(`❌ Erro ao obter permissões: ${error.message}`);
+            }
+        }
+
+        function goToApp() {
+            log('🚀 Redirecionando para a aplicação...');
+            window.location.href = 'http://localhost:5173';
+        }
+
+        // Log inicial
+        log('🧹 Página de limpeza de cache carregada');
+        log('💡 Use os botões acima para diagnosticar e resolver problemas');
+    </script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+{
+  "nome": "Leite Integral 1L",
+  "categoria": "Laticínios",
+  "codigo_barras": "7891234567890",
+  "preco_venda": 4.50,
+  "quantidade": 25,
+  "data_validade": "2024-02-15",
+  "fornecedor": "Laticínios ABC",
+  "descricao": "Leite integral pasteurizado"
+}
