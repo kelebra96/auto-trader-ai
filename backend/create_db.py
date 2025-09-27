@@ -17,46 +17,46 @@ def create_database():
         # Criar usuário admin padrão
         admin_user = User(
             email='admin@example.com',
-            password=generate_password_hash('admin123'),
             nome_estabelecimento='Estabelecimento Admin',
             nome_completo='Administrador do Sistema',
             cargo='admin',
             permissoes=['all'],
             ativo=True
         )
+        admin_user.set_password('admin123')
         
         # Criar usuário gerente
         gerente_user = User(
             email='gerente@example.com',
-            password=generate_password_hash('gerente123'),
             nome_estabelecimento='Estabelecimento Gerente',
             nome_completo='Gerente do Sistema',
             cargo='gerente',
             permissoes=['view_dashboard', 'view_products', 'create_product', 'edit_product', 'view_alerts', 'view_reports', 'view_sales', 'create_sale'],
             ativo=True
         )
+        gerente_user.set_password('gerente123')
         
         # Criar usuário comum
         usuario_user = User(
             email='usuario@example.com',
-            password=generate_password_hash('usuario123'),
             nome_estabelecimento='Estabelecimento Usuario',
             nome_completo='Usuário do Sistema',
             cargo='usuario',
             permissoes=['view_dashboard', 'view_products', 'create_product', 'view_alerts'],
             ativo=True
         )
+        usuario_user.set_password('usuario123')
         
         # Criar visualizador
         visualizador_user = User(
             email='visualizador@example.com',
-            password=generate_password_hash('visualizador123'),
             nome_estabelecimento='Estabelecimento Visualizador',
             nome_completo='Visualizador do Sistema',
             cargo='visualizador',
             permissoes=['view_dashboard', 'view_products', 'view_alerts', 'view_reports'],
             ativo=True
         )
+        visualizador_user.set_password('visualizador123')
         
         try:
             db.session.add(admin_user)

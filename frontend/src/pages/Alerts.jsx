@@ -28,7 +28,21 @@ const Alerts = () => {
   const loadConfigurations = async () => {
     try {
       const configs = await alertConfigService.getConfiguracoes();
-      setConfigurations(configs);
+      
+      // Garantir que valores booleanos sejam convertidos corretamente
+      const configsWithBooleans = {
+        ...configs,
+        vencimento: {
+          ...configs.vencimento,
+          ativo: Boolean(configs.vencimento?.ativo)
+        },
+        estoque_baixo: {
+          ...configs.estoque_baixo,
+          ativo: Boolean(configs.estoque_baixo?.ativo)
+        }
+      };
+      
+      setConfigurations(configsWithBooleans);
     } catch (err) {
       console.error('Erro ao carregar configurações:', err);
     }

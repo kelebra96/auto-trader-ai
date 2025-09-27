@@ -13,5 +13,12 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
+    allowedHosts: [
+      'localhost',
+      '127.0.0.1',
+      '212.85.17.99',
+      'rodrigoaalmeida.com.br',
+      'www.rodrigoaalmeida.com.br'
+    ],
   },
 })

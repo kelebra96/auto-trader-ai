@@ -34,7 +34,18 @@ const Settings = () => {
     try {
       setLoading(true);
       const configuracoes = await configService.getConfiguracoes();
-      setSettings(configuracoes);
+      
+      // Garantir que valores booleanos sejam convertidos corretamente
+      const settingsWithBooleans = {
+        ...configuracoes,
+        notificacoes_email: Boolean(configuracoes.notificacoes_email),
+        notificacoes_push: Boolean(configuracoes.notificacoes_push),
+        autenticacao_dois_fatores: Boolean(configuracoes.autenticacao_dois_fatores),
+        smtp_ssl: Boolean(configuracoes.smtp_ssl),
+        backup_automatico: Boolean(configuracoes.backup_automatico)
+      };
+      
+      setSettings(settingsWithBooleans);
     } catch (error) {
       console.error('Erro ao carregar configurações:', error);
       showMessage('Erro ao carregar configurações', 'error');

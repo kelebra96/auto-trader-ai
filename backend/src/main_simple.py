@@ -2,29 +2,57 @@ import os
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
-from werkzeug.security import check_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
+from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
 import json
+import uuid
+import csv
+import io
 from functools import wraps
+from sqlalchemy import Text
+
+# Importar blueprint de notificações
+from routes.notifications import notifications_bp
 
 # Configuração básica
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'dev-secret-key'
-import os
-basedir = os.path.abspath(os.path.dirname(__file__))
-app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(os.path.dirname(basedir), "app.db")}'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['JWT_SECRET_KEY'] = 'jwt-secret-key'
-app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
+
+# Importar configuração centralizada
+from config.settings import Config
+app.config.from_object(Config)
+
+# Configurações específicas para desenvolvimento (se necessário)
+if not app.config.get('UPLOAD_FOLDER'):
+    basedir = os.path.abspath(os.path.dirname(__file__))
+    app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(basedir), 'uploads')
 
 # Inicializar extensões
 db = SQLAlchemy(app)
 jwt = JWTManager(app)
 CORS(app, origins="*")
+
+# Classe auxiliar para campos JSON compatíveis com MySQL
+class JSONField(db.TypeDecorator):
+    """Campo JSON compatível com MySQL"""
+    impl = Text
+    
+    def process_bind_param(self, value, dialect):
+        if value is not None:
+            return json.dumps(value)
+        return value
+    
+    def process_result_value(self, value, dialect):
+        if value is not None:
+            try:
+                return json.loads(value)
+            except (ValueError, TypeError):
+                return value
+        return value
 
 # Middleware de logging detalhado
 @app.before_request
@@ -87,7 +115,7 @@ class User(db.Model):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password = db.Column(db.String(255), nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
     nome_estabelecimento = db.Column(db.String(200), nullable=False)
     
     # Informações pessoais
@@ -99,7 +127,7 @@ class User(db.Model):
     
     # Permissões e cargo
     cargo = db.Column(db.String(100), default='usuario')  # admin, gerente, usuario, visualizador
-    permissoes = db.Column(db.JSON, nullable=True)  # Lista de permissões específicas
+    permissoes = db.Column(JSONField, nullable=True)  # Lista de permissões específicas
     ativo = db.Column(db.Boolean, default=True)
     
     # Informações de segurança
@@ -110,6 +138,14 @@ class User(db.Model):
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def set_password(self, password):
+        """Define a senha do usuário com hash"""
+        self.password_hash = generate_password_hash(password)
+    
+    def check_password(self, password):
+        """Verifica se a senha está correta"""
+        return check_password_hash(self.password_hash, password)
     
     def to_dict(self, include_sensitive=False):
         data = {
@@ -138,37 +174,101 @@ class User(db.Model):
         return data
 
 # Modelo de produto simples
-class Produto(db.Model):
-    __tablename__ = 'produtos'
+# Modelo de Empresa
+class Empresa(db.Model):
+    __tablename__ = 'empresas'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    codigo = db.Column(db.String(50), unique=True, nullable=False)
     nome = db.Column(db.String(200), nullable=False)
-    codigo_barras = db.Column(db.String(50), nullable=True)
-    categoria = db.Column(db.String(100), nullable=False)
-    data_validade = db.Column(db.Date, nullable=True)
-    quantidade = db.Column(db.Integer, nullable=False, default=0)
-    preco_custo = db.Column(db.Float, nullable=True)
-    preco_venda = db.Column(db.Float, nullable=False)
-    fornecedor = db.Column(db.String(200), nullable=True)
-    status = db.Column(db.String(50), default='ativo')
+    email = db.Column(db.String(120), nullable=False)
+    telefone = db.Column(db.String(20), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def to_dict(self):
         return {
             'id': self.id,
-            'user_id': self.user_id,
+            'codigo': self.codigo,
             'nome': self.nome,
-            'codigo_barras': self.codigo_barras,
-            'categoria': self.categoria,
-            'data_validade': self.data_validade.isoformat() if self.data_validade else None,
-            'quantidade': self.quantidade,
-            'preco_custo': self.preco_custo,
-            'preco_venda': self.preco_venda,
-            'fornecedor': self.fornecedor,
+            'email': self.email,
+            'telefone': self.telefone,
+            'created_at': self.created_at.isoformat(),
+            'updated_at': self.updated_at.isoformat()
+        }
+
+# Modelo de Fornecedor
+class Fornecedor(db.Model):
+    __tablename__ = 'fornecedores'
+    id = db.Column(db.Integer, primary_key=True)
+    codigo = db.Column(db.String(50), unique=True, nullable=False)
+    nome = db.Column(db.String(200), nullable=False)
+    status = db.Column(db.String(20), default='ativo')  # ativo, inativo
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'codigo': self.codigo,
+            'nome': self.nome,
             'status': self.status,
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat()
+        }
+
+# Modelo de Produto (Simplificado conforme especificação)
+class Produto(db.Model):
+    __tablename__ = 'produtos'
+    id = db.Column(db.Integer, primary_key=True)
+    codigo = db.Column(db.String(50), unique=True, nullable=False)
+    nome = db.Column(db.String(200), nullable=False)
+    categoria = db.Column(db.String(100), nullable=False)
+    fornecedor_id = db.Column(db.Integer, db.ForeignKey('fornecedores.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relacionamento
+    fornecedor = db.relationship('Fornecedor', backref='produtos')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'codigo': self.codigo,
+            'nome': self.nome,
+            'categoria': self.categoria,
+            'fornecedor_id': self.fornecedor_id,
+            'fornecedor': self.fornecedor.to_dict() if self.fornecedor else None,
+            'created_at': self.created_at.isoformat(),
+            'updated_at': self.updated_at.isoformat()
+        }
+
+# Modelo de Entrada de Produto (Para dados do mobile)
+class EntradaProduto(db.Model):
+    __tablename__ = 'entradas_produtos'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    empresa_id = db.Column(db.Integer, db.ForeignKey('empresas.id'), nullable=False)
+    produto_id = db.Column(db.Integer, db.ForeignKey('produtos.id'), nullable=False)
+    data_vencimento = db.Column(db.Date, nullable=False)
+    quantidade = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relacionamentos
+    user = db.relationship('User', backref='entradas_produtos')
+    empresa = db.relationship('Empresa', backref='entradas_produtos')
+    produto = db.relationship('Produto', backref='entradas_produtos')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'empresa_id': self.empresa_id,
+            'produto_id': self.produto_id,
+            'produto': self.produto.to_dict() if self.produto else None,
+            'empresa': self.empresa.to_dict() if self.empresa else None,
+            'data_vencimento': self.data_vencimento.isoformat() if self.data_vencimento else None,
+            'quantidade': self.quantidade,
+            'created_at': self.created_at.isoformat()
         }
 
 # Modelo de Alerta
@@ -176,7 +276,7 @@ class Alerta(db.Model):
     __tablename__ = 'alertas'
     
     id = db.Column(db.Integer, primary_key=True)
-    produto_id = db.Column(db.Integer, db.ForeignKey('produtos.id'), nullable=False)
+    entrada_produto_id = db.Column(db.Integer, db.ForeignKey('entradas_produtos.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     tipo = db.Column(db.String(50), nullable=False)  # vencimento, estoque_baixo
     urgencia = db.Column(db.String(20), nullable=False)  # alta, media, baixa
@@ -187,20 +287,20 @@ class Alerta(db.Model):
     status = db.Column(db.String(20), default='ativo')  # ativo, resolvido, ignorado
     lido = db.Column(db.Boolean, default=False)  # Campo para marcar como lido
     acao_tomada = db.Column(db.String(100), nullable=True)
-    detalhes_resolucao = db.Column(db.JSON, nullable=True)
+    detalhes_resolucao = db.Column(JSONField, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     resolved_at = db.Column(db.DateTime, nullable=True)
     
     # Relacionamentos
-    produto = db.relationship('Produto', backref='alertas')
+    entrada_produto = db.relationship('EntradaProduto', backref='alertas')
     user = db.relationship('User', backref='alertas')
     
     def to_dict(self):
         return {
             'id': self.id,
-            'produto_id': self.produto_id,
-            'produto_nome': self.produto.nome if self.produto else None,
-            'produto': self.produto.to_dict() if self.produto else None,
+            'entrada_produto_id': self.entrada_produto_id,
+            'produto_nome': self.entrada_produto.produto.nome if self.entrada_produto and self.entrada_produto.produto else None,
+            'entrada_produto': self.entrada_produto.to_dict() if self.entrada_produto else None,
             'tipo': self.tipo,
             'urgencia': self.urgencia,
             'titulo': self.titulo,
@@ -225,7 +325,7 @@ class ConfiguracaoAlerta(db.Model):
     ativo = db.Column(db.Boolean, default=True)
     dias_antecedencia = db.Column(db.Integer, default=7)  # Para alertas de vencimento
     estoque_minimo = db.Column(db.Integer, default=5)  # Para alertas de estoque baixo
-    categorias = db.Column(db.JSON, nullable=True)  # Lista de categorias para filtrar
+    categorias = db.Column(JSONField, nullable=True)  # Lista de categorias para filtrar
     notificar_email = db.Column(db.Boolean, default=True)
     notificar_sistema = db.Column(db.Boolean, default=True)
     horario_notificacao = db.Column(db.Time, nullable=True)  # Horário preferido para notificações
@@ -467,6 +567,34 @@ def require_cargo(allowed_cargos):
         return decorated_function
     return decorator
 
+# Função auxiliar para upload de arquivos
+def allowed_file(filename):
+    """Verifica se o arquivo tem uma extensão permitida"""
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def save_uploaded_file(file):
+    """Salva o arquivo enviado e retorna o caminho relativo"""
+    if file and allowed_file(file.filename):
+        # Gerar nome único para o arquivo
+        filename = secure_filename(file.filename)
+        file_extension = filename.rsplit('.', 1)[1].lower()
+        unique_filename = f"{uuid.uuid4().hex}.{file_extension}"
+        
+        # Criar diretório se não existir
+        upload_folder = app.config['UPLOAD_FOLDER']
+        os.makedirs(upload_folder, exist_ok=True)
+        
+        # Salvar arquivo
+        file_path = os.path.join(upload_folder, unique_filename)
+        file.save(file_path)
+        
+        # Retornar caminho relativo para armazenar no banco
+        return f"/uploads/{unique_filename}"
+    
+    return None
+
 @app.route('/api/auth/register', methods=['POST'])
 def register():
     data = request.get_json()
@@ -478,9 +606,9 @@ def register():
     # Criar usuário
     user = User(
         email=data['email'],
-        password=data['password'],  # Em produção, usar hash
         nome_estabelecimento=data['nome_estabelecimento']
     )
+    user.set_password(data['password'])  # Usar hash de senha
     
     db.session.add(user)
     db.session.commit()
@@ -533,14 +661,15 @@ def login():
     print(f"User found: {user}")
     
     if user:
-        print(f"User password in DB: {user.password}")
-        print(f"Password match: {check_password_hash(user.password, password)}")
+        print(f"User password hash in DB: {user.password_hash}")
+        print(f"Password match: {user.check_password(password)}")
     
-    if user and check_password_hash(user.password, password):
+    if user and user.check_password(password):
         access_token = create_access_token(identity=str(user.id))
         print(f"Login successful, token created: {access_token[:50]}...")
         return jsonify({
-            'token': access_token,
+            'access_token': access_token,
+            'token': access_token,  # Mantendo compatibilidade
             'usuario': {
                 'id': user.id,
                 'email': user.email,
@@ -551,14 +680,171 @@ def login():
         print("Login failed - invalid credentials")
         return jsonify({'error': 'Credenciais inválidas'}), 401
 
-# Rotas de produtos
+# ==================== FUNÇÕES DE PROCESSAMENTO DE IMPORTAÇÃO ====================
+
+def process_json_import(file, user_id):
+    """Processa importação de arquivo JSON"""
+    produtos_importados = []
+    erros = []
+    
+    try:
+        content = file.read().decode('utf-8')
+        data = json.loads(content)
+        
+        # Se o JSON é uma lista de produtos
+        if isinstance(data, list):
+            produtos_data = data
+        # Se o JSON tem uma chave 'produtos'
+        elif isinstance(data, dict) and 'produtos' in data:
+            produtos_data = data['produtos']
+        else:
+            raise ValueError("Formato JSON inválido. Esperado uma lista de produtos ou objeto com chave 'produtos'")
+        
+        for i, produto_data in enumerate(produtos_data):
+            try:
+                produto = create_produto_from_data(produto_data, user_id)
+                if produto:
+                    produtos_importados.append(produto.to_dict())
+            except Exception as e:
+                erros.append(f"Linha {i+1}: {str(e)}")
+                
+    except json.JSONDecodeError as e:
+        erros.append(f"Erro ao decodificar JSON: {str(e)}")
+    except Exception as e:
+        erros.append(f"Erro no processamento: {str(e)}")
+    
+    return produtos_importados, erros
+
+def process_csv_import(file, user_id):
+    """Processa importação de arquivo CSV"""
+    produtos_importados = []
+    erros = []
+    
+    try:
+        # Ler o arquivo como string
+        content = file.read().decode('utf-8')
+        csv_reader = csv.DictReader(io.StringIO(content))
+        
+        for i, row in enumerate(csv_reader):
+            try:
+                produto = create_produto_from_data(row, user_id)
+                if produto:
+                    produtos_importados.append(produto.to_dict())
+            except Exception as e:
+                erros.append(f"Linha {i+2}: {str(e)}")  # +2 porque linha 1 é header
+                
+    except Exception as e:
+        erros.append(f"Erro no processamento CSV: {str(e)}")
+    
+    return produtos_importados, erros
+
+def process_xlsx_import(file, user_id):
+    """Processa importação de arquivo XLSX"""
+    produtos_importados = []
+    erros = []
+    
+    try:
+        # Para XLSX, vamos tentar importar openpyxl se disponível
+        try:
+            import openpyxl
+        except ImportError:
+            erros.append("Biblioteca openpyxl não instalada. Instale com: pip install openpyxl")
+            return produtos_importados, erros
+        
+        workbook = openpyxl.load_workbook(file)
+        sheet = workbook.active
+        
+        # Obter headers da primeira linha
+        headers = []
+        for cell in sheet[1]:
+            headers.append(cell.value)
+        
+        # Processar dados das linhas seguintes
+        for row_num in range(2, sheet.max_row + 1):
+            try:
+                row_data = {}
+                for col_num, header in enumerate(headers, 1):
+                    cell_value = sheet.cell(row=row_num, column=col_num).value
+                    row_data[header] = cell_value
+                
+                produto = create_produto_from_data(row_data, user_id)
+                if produto:
+                    produtos_importados.append(produto.to_dict())
+            except Exception as e:
+                erros.append(f"Linha {row_num}: {str(e)}")
+                
+    except Exception as e:
+        erros.append(f"Erro no processamento XLSX: {str(e)}")
+    
+    return produtos_importados, erros
+
+def create_produto_from_data(data, user_id):
+    """Cria um produto a partir dos dados importados"""
+    try:
+        # Mapear campos (aceitar variações de nomes)
+        nome = data.get('nome') or data.get('name') or data.get('produto')
+        if not nome:
+            raise ValueError("Campo 'nome' é obrigatório")
+        
+        # Campos obrigatórios com valores padrão
+        categoria = data.get('categoria') or data.get('category') or 'Geral'
+        preco = float(data.get('preco') or data.get('price') or data.get('valor') or 0)
+        quantidade = int(data.get('quantidade') or data.get('quantity') or data.get('estoque') or 0)
+        
+        # Campos opcionais
+        descricao = data.get('descricao') or data.get('description') or ''
+        codigo_barras = data.get('codigo_barras') or data.get('barcode') or data.get('ean') or ''
+        fornecedor = data.get('fornecedor') or data.get('supplier') or ''
+        
+        # Data de validade (opcional)
+        data_validade = None
+        validade_str = data.get('data_validade') or data.get('validade') or data.get('expiry_date')
+        if validade_str:
+            try:
+                if isinstance(validade_str, str):
+                    # Tentar diferentes formatos de data
+                    for fmt in ['%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y']:
+                        try:
+                            data_validade = datetime.strptime(validade_str, fmt).date()
+                            break
+                        except ValueError:
+                            continue
+                elif hasattr(validade_str, 'date'):  # Para objetos datetime do Excel
+                    data_validade = validade_str.date()
+            except:
+                pass  # Ignorar erros de data
+        
+        # Criar produto
+        produto = Produto(
+            nome=nome,
+            categoria=categoria,
+            preco=preco,
+            quantidade=quantidade,
+            descricao=descricao,
+            codigo_barras=codigo_barras,
+            fornecedor=fornecedor,
+            data_validade=data_validade,
+            user_id=user_id,
+            status='ativo'
+        )
+        
+        db.session.add(produto)
+        db.session.commit()
+        
+        return produto
+        
+    except Exception as e:
+        db.session.rollback()
+        raise e
+
+# ==================== ROTAS DE PRODUTOS ====================
+
 @app.route('/api/produtos', methods=['GET'])
 @require_permission('view_products')
 def listar_produtos():
     try:
-        user_id = int(get_jwt_identity())
-        print(f"DEBUG: Listando produtos para user_id: {user_id}")
-        produtos = Produto.query.filter_by(user_id=user_id).all()
+        print(f"DEBUG: Listando produtos")
+        produtos = Produto.query.all()
         print(f"DEBUG: Encontrados {len(produtos)} produtos")
         return jsonify({
             'produtos': [produto.to_dict() for produto in produtos]
@@ -574,35 +860,29 @@ def criar_produto():
         print("DEBUG: Entrando na função criar_produto")
         print(f"DEBUG: Headers da requisição: {dict(request.headers)}")
         
-        user_id = int(get_jwt_identity())
-        print(f"DEBUG: JWT validado com sucesso, user_id: {user_id}")
-        
         data = request.get_json()
         print(f"DEBUG: Dados recebidos: {data}")
         
         # Validação básica
-        if not data.get('nome') or not data.get('categoria') or not data.get('preco_venda'):
-            return jsonify({'error': 'Campos obrigatórios: nome, categoria, preco_venda'}), 400
+        if not data.get('nome') or not data.get('categoria') or not data.get('codigo') or not data.get('fornecedor_id'):
+            return jsonify({'error': 'Campos obrigatórios: codigo, nome, categoria, fornecedor_id'}), 400
         
-        # Converter data_validade se fornecida
-        data_validade = None
-        if data.get('data_validade'):
-            try:
-                data_validade = datetime.strptime(data['data_validade'], '%Y-%m-%d').date()
-            except ValueError:
-                return jsonify({'error': 'Formato de data inválido. Use YYYY-MM-DD'}), 400
+        # Verificar se o fornecedor existe
+        fornecedor = Fornecedor.query.get(data['fornecedor_id'])
+        if not fornecedor:
+            return jsonify({'error': 'Fornecedor não encontrado'}), 400
+        
+        # Verificar se o código já existe
+        produto_existente = Produto.query.filter_by(codigo=data['codigo']).first()
+        if produto_existente:
+            return jsonify({'error': 'Código de produto já existe'}), 400
         
         # Criar produto
         produto = Produto(
-            user_id=user_id,
+            codigo=data['codigo'],
             nome=data['nome'],
-            codigo_barras=data.get('codigo_barras'),
             categoria=data['categoria'],
-            data_validade=data_validade,
-            quantidade=data.get('quantidade', 0),
-            preco_custo=data.get('preco_custo'),
-            preco_venda=data['preco_venda'],
-            fornecedor=data.get('fornecedor')
+            fornecedor_id=data['fornecedor_id']
         )
         
         db.session.add(produto)
@@ -681,6 +961,392 @@ def deletar_produto(produto_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/produtos/import', methods=['POST'])
+@require_permission('create_product')
+def import_produtos():
+    """Importa produtos de arquivo CSV, XLSX ou JSON"""
+    try:
+        user_id = int(get_jwt_identity())
+        
+        if 'file' not in request.files:
+            return jsonify({'error': 'Nenhum arquivo enviado'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'Nenhum arquivo selecionado'}), 400
+        
+        # Verificar extensão do arquivo
+        filename = secure_filename(file.filename)
+        file_ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
+        
+        if file_ext not in ['csv', 'xlsx', 'json']:
+            return jsonify({'error': 'Formato de arquivo não suportado. Use CSV, XLSX ou JSON'}), 400
+        
+        # Processar arquivo baseado na extensão
+        produtos_importados = []
+        erros = []
+        
+        try:
+            if file_ext == 'json':
+                produtos_importados, erros = process_json_import(file, user_id)
+            elif file_ext == 'csv':
+                produtos_importados, erros = process_csv_import(file, user_id)
+            elif file_ext == 'xlsx':
+                produtos_importados, erros = process_xlsx_import(file, user_id)
+        except Exception as e:
+            return jsonify({'error': f'Erro ao processar arquivo: {str(e)}'}), 400
+        
+        return jsonify({
+            'message': 'Importação concluída',
+            'imported': len(produtos_importados),
+            'errors': erros,
+            'produtos': produtos_importados
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# ==================== ENDPOINTS DE FORNECEDORES ====================
+
+@app.route('/api/fornecedores', methods=['GET'])
+@require_permission('view_products')
+def listar_fornecedores():
+    try:
+        print(f"DEBUG: Listando fornecedores")
+        fornecedores = Fornecedor.query.all()
+        print(f"DEBUG: Encontrados {len(fornecedores)} fornecedores")
+        return jsonify({
+            'fornecedores': [fornecedor.to_dict() for fornecedor in fornecedores]
+        }), 200
+    except Exception as e:
+        print(f"ERROR: Erro ao listar fornecedores: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/fornecedores', methods=['POST'])
+@require_permission('create_product')
+def criar_fornecedor():
+    try:
+        print("DEBUG: Entrando na função criar_fornecedor")
+        
+        data = request.get_json()
+        print(f"DEBUG: Dados recebidos: {data}")
+        
+        # Validação básica
+        if not data.get('nome') or not data.get('codigo'):
+            return jsonify({'error': 'Campos obrigatórios: codigo, nome'}), 400
+        
+        # Verificar se o código já existe
+        fornecedor_existente = Fornecedor.query.filter_by(codigo=data['codigo']).first()
+        if fornecedor_existente:
+            return jsonify({'error': 'Código de fornecedor já existe'}), 400
+        
+        # Criar fornecedor
+        fornecedor = Fornecedor(
+            codigo=data['codigo'],
+            nome=data['nome'],
+            status=data.get('status', 'ativo')
+        )
+        
+        db.session.add(fornecedor)
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Fornecedor criado com sucesso',
+            'fornecedor': fornecedor.to_dict()
+        }), 201
+        
+    except Exception as e:
+        print(f"ERROR: Erro ao criar fornecedor: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/fornecedores/<int:fornecedor_id>', methods=['PUT'])
+@require_permission('edit_product')
+def atualizar_fornecedor(fornecedor_id):
+    try:
+        print(f"DEBUG: Atualizando fornecedor {fornecedor_id}")
+        
+        fornecedor = Fornecedor.query.get(fornecedor_id)
+        if not fornecedor:
+            return jsonify({'error': 'Fornecedor não encontrado'}), 404
+        
+        data = request.get_json()
+        print(f"DEBUG: Dados recebidos: {data}")
+        
+        # Verificar se o código já existe (exceto para o próprio fornecedor)
+        if data.get('codigo') and data['codigo'] != fornecedor.codigo:
+            fornecedor_existente = Fornecedor.query.filter_by(codigo=data['codigo']).first()
+            if fornecedor_existente:
+                return jsonify({'error': 'Código de fornecedor já existe'}), 400
+        
+        # Atualizar campos
+        if data.get('codigo'):
+            fornecedor.codigo = data['codigo']
+        if data.get('nome'):
+            fornecedor.nome = data['nome']
+        if data.get('status'):
+            fornecedor.status = data['status']
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Fornecedor atualizado com sucesso',
+            'fornecedor': fornecedor.to_dict()
+        }), 200
+        
+    except Exception as e:
+        print(f"ERROR: Erro ao atualizar fornecedor: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/fornecedores/<int:fornecedor_id>', methods=['DELETE'])
+@require_permission('delete_product')
+def deletar_fornecedor(fornecedor_id):
+    try:
+        print(f"DEBUG: Deletando fornecedor {fornecedor_id}")
+        
+        fornecedor = Fornecedor.query.get(fornecedor_id)
+        if not fornecedor:
+            return jsonify({'error': 'Fornecedor não encontrado'}), 404
+        
+        # Verificar se há produtos vinculados
+        produtos_vinculados = Produto.query.filter_by(fornecedor_id=fornecedor_id).count()
+        if produtos_vinculados > 0:
+            return jsonify({'error': f'Não é possível deletar. Há {produtos_vinculados} produto(s) vinculado(s) a este fornecedor'}), 400
+        
+        db.session.delete(fornecedor)
+        db.session.commit()
+        
+        return jsonify({'message': 'Fornecedor deletado com sucesso'}), 200
+        
+    except Exception as e:
+        print(f"ERROR: Erro ao deletar fornecedor: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# ==================== ENDPOINTS DE EMPRESAS ====================
+
+@app.route('/api/empresas', methods=['GET'])
+@require_permission('view_products')
+def listar_empresas():
+    try:
+        print(f"DEBUG: Listando empresas")
+        empresas = Empresa.query.all()
+        print(f"DEBUG: Encontradas {len(empresas)} empresas")
+        return jsonify({
+            'empresas': [empresa.to_dict() for empresa in empresas]
+        }), 200
+    except Exception as e:
+        print(f"ERROR: Erro ao listar empresas: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/empresas', methods=['POST'])
+@require_permission('create_product')
+def criar_empresa():
+    try:
+        print("DEBUG: Entrando na função criar_empresa")
+        
+        data = request.get_json()
+        print(f"DEBUG: Dados recebidos: {data}")
+        
+        # Validação básica
+        if not data.get('nome') or not data.get('codigo') or not data.get('email') or not data.get('telefone'):
+            return jsonify({'error': 'Campos obrigatórios: codigo, nome, email, telefone'}), 400
+        
+        # Verificar se o código já existe
+        empresa_existente = Empresa.query.filter_by(codigo=data['codigo']).first()
+        if empresa_existente:
+            return jsonify({'error': 'Código de empresa já existe'}), 400
+        
+        # Criar empresa
+        empresa = Empresa(
+            codigo=data['codigo'],
+            nome=data['nome'],
+            email=data['email'],
+            telefone=data['telefone']
+        )
+        
+        db.session.add(empresa)
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Empresa criada com sucesso',
+            'empresa': empresa.to_dict()
+        }), 201
+        
+    except Exception as e:
+        print(f"ERROR: Erro ao criar empresa: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/empresas/<int:empresa_id>', methods=['PUT'])
+@require_permission('edit_product')
+def atualizar_empresa(empresa_id):
+    try:
+        print(f"DEBUG: Atualizando empresa {empresa_id}")
+        
+        empresa = Empresa.query.get(empresa_id)
+        if not empresa:
+            return jsonify({'error': 'Empresa não encontrada'}), 404
+        
+        data = request.get_json()
+        print(f"DEBUG: Dados recebidos: {data}")
+        
+        # Verificar se o código já existe (exceto para a própria empresa)
+        if data.get('codigo') and data['codigo'] != empresa.codigo:
+            empresa_existente = Empresa.query.filter_by(codigo=data['codigo']).first()
+            if empresa_existente:
+                return jsonify({'error': 'Código de empresa já existe'}), 400
+        
+        # Atualizar campos
+        if data.get('codigo'):
+            empresa.codigo = data['codigo']
+        if data.get('nome'):
+            empresa.nome = data['nome']
+        if data.get('email'):
+            empresa.email = data['email']
+        if data.get('telefone'):
+            empresa.telefone = data['telefone']
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Empresa atualizada com sucesso',
+            'empresa': empresa.to_dict()
+        }), 200
+        
+    except Exception as e:
+        print(f"ERROR: Erro ao atualizar empresa: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/empresas/<int:empresa_id>', methods=['DELETE'])
+@require_permission('delete_product')
+def deletar_empresa(empresa_id):
+    try:
+        print(f"DEBUG: Deletando empresa {empresa_id}")
+        
+        empresa = Empresa.query.get(empresa_id)
+        if not empresa:
+            return jsonify({'error': 'Empresa não encontrada'}), 404
+        
+        # Verificar se há entradas de produtos vinculadas
+        entradas_vinculadas = EntradaProduto.query.filter_by(empresa_id=empresa_id).count()
+        if entradas_vinculadas > 0:
+            return jsonify({'error': f'Não é possível deletar. Há {entradas_vinculadas} entrada(s) de produto(s) vinculada(s) a esta empresa'}), 400
+        
+        db.session.delete(empresa)
+        db.session.commit()
+        
+        return jsonify({'message': 'Empresa deletada com sucesso'}), 200
+        
+    except Exception as e:
+        print(f"ERROR: Erro ao deletar empresa: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# ==================== ENDPOINTS DE ENTRADAS DE PRODUTOS (MOBILE) ====================
+
+@app.route('/api/entradas-produtos', methods=['GET'])
+@require_permission('view_products')
+def listar_entradas_produtos():
+    try:
+        user_id = int(get_jwt_identity())
+        print(f"DEBUG: Listando entradas de produtos para user_id: {user_id}")
+        
+        # Filtros opcionais
+        empresa_id = request.args.get('empresa_id')
+        produto_id = request.args.get('produto_id')
+        
+        query = EntradaProduto.query.filter_by(user_id=user_id)
+        
+        if empresa_id:
+            query = query.filter_by(empresa_id=empresa_id)
+        if produto_id:
+            query = query.filter_by(produto_id=produto_id)
+        
+        entradas = query.order_by(EntradaProduto.created_at.desc()).all()
+        print(f"DEBUG: Encontradas {len(entradas)} entradas")
+        
+        return jsonify({
+            'entradas': [entrada.to_dict() for entrada in entradas]
+        }), 200
+    except Exception as e:
+        print(f"ERROR: Erro ao listar entradas de produtos: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/entradas-produtos', methods=['POST'])
+@require_permission('create_product')
+def criar_entrada_produto():
+    try:
+        print("DEBUG: Entrando na função criar_entrada_produto")
+        
+        user_id = int(get_jwt_identity())
+        data = request.get_json()
+        print(f"DEBUG: Dados recebidos: {data}")
+        
+        # Validação básica
+        required_fields = ['empresa_id', 'produto_id', 'data_vencimento', 'quantidade']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({'error': f'Campo obrigatório: {field}'}), 400
+        
+        # Verificar se empresa e produto existem
+        empresa = Empresa.query.get(data['empresa_id'])
+        if not empresa:
+            return jsonify({'error': 'Empresa não encontrada'}), 400
+        
+        produto = Produto.query.get(data['produto_id'])
+        if not produto:
+            return jsonify({'error': 'Produto não encontrado'}), 400
+        
+        # Converter data_vencimento
+        try:
+            data_vencimento = datetime.strptime(data['data_vencimento'], '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({'error': 'Formato de data inválido. Use YYYY-MM-DD'}), 400
+        
+        # Criar entrada de produto
+        entrada = EntradaProduto(
+            user_id=user_id,
+            empresa_id=data['empresa_id'],
+            produto_id=data['produto_id'],
+            data_vencimento=data_vencimento,
+            quantidade=data['quantidade']
+        )
+        
+        db.session.add(entrada)
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Entrada de produto criada com sucesso',
+            'entrada': entrada.to_dict()
+        }), 201
+        
+    except Exception as e:
+        print(f"ERROR: Erro ao criar entrada de produto: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# ==================== ENDPOINTS DE BUSCA PARA MOBILE ====================
+
+@app.route('/api/produtos/buscar', methods=['GET'])
+@require_permission('view_products')
+def buscar_produtos():
+    try:
+        termo = request.args.get('q', '').strip()
+        if not termo:
+            return jsonify({'produtos': []}), 200
+        
+        # Buscar por código ou nome
+        produtos = Produto.query.filter(
+            db.or_(
+                Produto.codigo.ilike(f'%{termo}%'),
+                Produto.nome.ilike(f'%{termo}%')
+            )
+        ).limit(10).all()
+        
+        return jsonify({
+            'produtos': [produto.to_dict() for produto in produtos]
+        }), 200
+        
+    except Exception as e:
+        print(f"ERROR: Erro ao buscar produtos: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 # ==================== ENDPOINTS DE RELATÓRIOS ====================
 
 @app.route('/api/dashboard', methods=['GET'])
@@ -688,164 +1354,76 @@ def deletar_produto(produto_id):
 def dashboard_principal():
     """Retorna dados do dashboard principal"""
     try:
-        user_id = get_jwt_identity()
+        # Total de produtos
+        total_produtos = Produto.query.count()
         
-        # Datas para comparação (mês atual vs mês anterior)
-        hoje = datetime.now().date()
-        inicio_mes_atual = hoje.replace(day=1)
-        inicio_mes_anterior = (inicio_mes_atual - timedelta(days=1)).replace(day=1)
-        fim_mes_anterior = inicio_mes_atual - timedelta(days=1)
+        # Total de fornecedores
+        total_fornecedores = Fornecedor.query.count()
         
-        # Total de produtos ativos
-        total_produtos = Produto.query.filter(
-            Produto.user_id == user_id,
-            Produto.status == 'ativo'
+        # Total de empresas
+        total_empresas = Empresa.query.count()
+        
+        # Total de entradas de produtos
+        total_entradas = EntradaProduto.query.count()
+        
+        # Entradas recentes (últimas 5)
+        entradas_recentes = EntradaProduto.query.order_by(EntradaProduto.id.desc()).limit(5).all()
+        
+        # Produtos recentes (últimos 5 produtos cadastrados)
+        produtos_recentes = Produto.query.order_by(Produto.id.desc()).limit(5).all()
+        
+        # Produtos vencendo em 7 dias (baseado nas entradas)
+        from datetime import datetime, timedelta
+        data_limite = datetime.now().date() + timedelta(days=7)
+        entradas_vencendo = EntradaProduto.query.filter(
+            EntradaProduto.data_vencimento <= data_limite,
+            EntradaProduto.data_vencimento >= datetime.now().date()
+        ).order_by(EntradaProduto.data_vencimento.asc()).limit(5).all()
+        
+        # Produtos vencidos (contagem baseada nas entradas)
+        produtos_vencidos_count = EntradaProduto.query.filter(
+            EntradaProduto.data_vencimento < datetime.now().date()
         ).count()
         
-        # Total de produtos do mês anterior
-        total_produtos_mes_anterior = Produto.query.filter(
-            Produto.user_id == user_id,
-            Produto.status == 'ativo',
-            Produto.created_at < inicio_mes_atual
+        # Produtos vencendo (contagem)
+        produtos_vencendo_count = EntradaProduto.query.filter(
+            EntradaProduto.data_vencimento <= data_limite,
+            EntradaProduto.data_vencimento >= datetime.now().date()
         ).count()
         
-        # Calcular mudança percentual para total de produtos
-        change_total_produtos = 0
-        if total_produtos_mes_anterior > 0:
-            change_total_produtos = ((total_produtos - total_produtos_mes_anterior) / total_produtos_mes_anterior) * 100
-        elif total_produtos > 0:
-            change_total_produtos = 100  # 100% de aumento se não havia produtos antes
+        # Valor total do estoque (simplificado)
+        valor_estoque = 0  # Será calculado quando tivermos preços nas entradas
         
-        # Produtos vencidos
-        produtos_vencidos = Produto.query.filter(
-            Produto.user_id == user_id,
-            Produto.data_validade < hoje,
-            Produto.status == 'ativo'
-        ).count()
+        # Usuários ativos (simplificado)
+        usuarios_ativos = User.query.filter(User.ativo == True).count()
         
-        # Produtos vencidos no mês anterior
-        produtos_vencidos_mes_anterior = Produto.query.filter(
-            Produto.user_id == user_id,
-            Produto.data_validade < fim_mes_anterior,
-            Produto.status == 'ativo'
-        ).count()
-        
-        # Calcular mudança percentual para produtos vencidos
-        change_produtos_vencidos = 0
-        if produtos_vencidos_mes_anterior > 0:
-            change_produtos_vencidos = ((produtos_vencidos - produtos_vencidos_mes_anterior) / produtos_vencidos_mes_anterior) * 100
-        elif produtos_vencidos > 0:
-            change_produtos_vencidos = 100
-        
-        # Produtos vencendo em 7 dias
-        data_limite = hoje + timedelta(days=7)
-        produtos_vencendo = Produto.query.filter(
-            Produto.user_id == user_id,
-            Produto.data_validade <= data_limite,
-            Produto.data_validade >= hoje,
-            Produto.status == 'ativo'
-        ).count()
-        
-        # Produtos que estavam vencendo no mês anterior
-        data_limite_anterior = fim_mes_anterior + timedelta(days=7)
-        produtos_vencendo_mes_anterior = Produto.query.filter(
-            Produto.user_id == user_id,
-            Produto.data_validade <= data_limite_anterior,
-            Produto.data_validade >= fim_mes_anterior,
-            Produto.status == 'ativo'
-        ).count()
-        
-        # Calcular mudança percentual para produtos vencendo
-        change_produtos_vencendo = 0
-        if produtos_vencendo_mes_anterior > 0:
-            change_produtos_vencendo = ((produtos_vencendo - produtos_vencendo_mes_anterior) / produtos_vencendo_mes_anterior) * 100
-        elif produtos_vencendo > 0:
-            change_produtos_vencendo = 100
-        
-        # Valor total do estoque
-        produtos_ativos = Produto.query.filter(
-            Produto.user_id == user_id,
-            Produto.status == 'ativo'
-        ).all()
-        
-        valor_estoque = sum([(p.preco_venda or 0) * (p.quantidade or 0) for p in produtos_ativos])
-        
-        # Valor do estoque do mês anterior
-        produtos_ativos_mes_anterior = Produto.query.filter(
-            Produto.user_id == user_id,
-            Produto.status == 'ativo',
-            Produto.created_at < inicio_mes_atual
-        ).all()
-        
-        valor_estoque_mes_anterior = sum([(p.preco_venda or 0) * (p.quantidade or 0) for p in produtos_ativos_mes_anterior])
-        
-        # Calcular mudança percentual para valor do estoque
-        change_valor_estoque = 0
-        if valor_estoque_mes_anterior > 0:
-            change_valor_estoque = ((valor_estoque - valor_estoque_mes_anterior) / valor_estoque_mes_anterior) * 100
-        elif valor_estoque > 0:
-            change_valor_estoque = 100
-        
-        # Vendas do mês (dados reais da tabela de vendas)
-        inicio_mes = hoje.replace(day=1)
-        vendas_mes_query = db.session.query(db.func.sum(Venda.valor_total)).filter(
-            Venda.user_id == user_id,
-            Venda.data_venda >= inicio_mes,
-            Venda.data_venda < hoje + timedelta(days=1)
-        ).scalar()
-        vendas_mes = vendas_mes_query or 0.0
-        
-        # Vendas do mês anterior
-        vendas_mes_anterior_query = db.session.query(db.func.sum(Venda.valor_total)).filter(
-            Venda.user_id == user_id,
-            Venda.data_venda >= inicio_mes_anterior,
-            Venda.data_venda < fim_mes_anterior
-        ).scalar()
-        vendas_mes_anterior = vendas_mes_anterior_query or 0.0
-        
-        # Calcular mudança percentual para vendas
-        change_vendas = 0
-        if vendas_mes_anterior > 0:
-            change_vendas = ((vendas_mes - vendas_mes_anterior) / vendas_mes_anterior) * 100
-        elif vendas_mes > 0:
-            change_vendas = 100
-        
-        # Usuários ativos (sempre 1 para o sistema atual)
-        usuarios_ativos = 1
-        change_usuarios_ativos = 0  # Sem mudança para usuários ativos
-        
-        # Produtos recentes (últimos 3 produtos cadastrados)
-        produtos_recentes = Produto.query.filter(
-            Produto.user_id == user_id,
-            Produto.status == 'ativo'
-        ).order_by(Produto.created_at.desc()).limit(3).all()
-        
-        # Produtos vencendo (próximos 5 produtos a vencer)
-        produtos_vencendo_lista = Produto.query.filter(
-            Produto.user_id == user_id,
-            Produto.data_validade >= hoje,
-            Produto.status == 'ativo'
-        ).order_by(Produto.data_validade.asc()).limit(5).all()
+        # Fornecedores com mais produtos
+        fornecedores_top = db.session.query(
+            Fornecedor.nome,
+            db.func.count(Produto.id).label('total_produtos')
+        ).join(Produto).group_by(Fornecedor.id, Fornecedor.nome).order_by(
+            db.func.count(Produto.id).desc()
+        ).limit(5).all()
         
         return jsonify({
             'stats': {
                 'totalProdutos': total_produtos,
-                'produtosVencendo': produtos_vencendo,
-                'produtosVencidos': produtos_vencidos,
+                'produtosVencendo': produtos_vencendo_count,
+                'produtosVencidos': produtos_vencidos_count,
                 'valorEstoque': valor_estoque,
-                'vendasMes': vendas_mes,
                 'usuariosAtivos': usuarios_ativos
             },
             'changes': {
-                'totalProdutos': round(change_total_produtos, 1),
-                'produtosVencendo': round(change_produtos_vencendo, 1),
-                'produtosVencidos': round(change_produtos_vencidos, 1),
-                'valorEstoque': round(change_valor_estoque, 1),
-                'vendasMes': round(change_vendas, 1),
-                'usuariosAtivos': round(change_usuarios_ativos, 1)
+                'totalProdutos': 0,  # Simplified - no historical comparison
+                'produtosVencendo': 0,
+                'produtosVencidos': 0,
+                'valorEstoque': 0,
+                'usuariosAtivos': 0
             },
             'recentProducts': [p.to_dict() for p in produtos_recentes],
-            'expiringProducts': [p.to_dict() for p in produtos_vencendo_lista]
+            'expiringProducts': [e.to_dict() for e in entradas_vencendo],
+            'recentEntries': [e.to_dict() for e in entradas_recentes],
+            'topSuppliers': [{'nome': f.nome, 'total_produtos': f.total_produtos} for f in fornecedores_top]
         })
         
     except Exception as e:
@@ -1905,7 +2483,6 @@ def criar_usuario():
         # Criar novo usuário
         novo_usuario = User(
             email=data['email'],
-            password=data['password'],  # Em produção, usar hash
             nome_estabelecimento=data['nome_estabelecimento'],
             nome_completo=data.get('nome_completo'),
             telefone=data.get('telefone'),
@@ -1915,6 +2492,7 @@ def criar_usuario():
             permissoes=data.get('permissoes'),
             ativo=data.get('ativo', True)
         )
+        novo_usuario.set_password(data['password'])  # Usar hash de senha
         
         db.session.add(novo_usuario)
         db.session.commit()
@@ -2084,8 +2662,8 @@ def alterar_senha_usuario(usuario_id):
         if 'nova_senha' not in data:
             return jsonify({'error': 'Nova senha é obrigatória'}), 400
         
-        # Atualizar senha (aqui você implementaria o hash da senha)
-        usuario.password = data['nova_senha']  # Em produção, use hash
+        # Atualizar senha usando hash
+        usuario.set_password(data['nova_senha'])
         usuario.updated_at = datetime.utcnow()
         
         db.session.commit()
@@ -2112,13 +2690,32 @@ def upload_foto_perfil(usuario_id):
         if not usuario:
             return jsonify({'error': 'Usuário não encontrado'}), 404
         
-        data = request.get_json()
+        # Verificar se há arquivo na requisição
+        if 'foto_perfil' not in request.files:
+            return jsonify({'error': 'Nenhum arquivo enviado'}), 400
         
-        if 'foto_url' not in data:
-            return jsonify({'error': 'URL da foto é obrigatória'}), 400
+        file = request.files['foto_perfil']
+        
+        # Verificar se um arquivo foi selecionado
+        if file.filename == '':
+            return jsonify({'error': 'Nenhum arquivo selecionado'}), 400
+        
+        # Salvar o arquivo
+        file_path = save_uploaded_file(file)
+        if not file_path:
+            return jsonify({'error': 'Tipo de arquivo não permitido. Use PNG, JPG, JPEG, GIF ou WEBP'}), 400
+        
+        # Remover foto anterior se existir
+        if usuario.foto_perfil and usuario.foto_perfil.startswith('/uploads/'):
+            old_file_path = os.path.join(app.config['UPLOAD_FOLDER'], usuario.foto_perfil.replace('/uploads/', ''))
+            if os.path.exists(old_file_path):
+                try:
+                    os.remove(old_file_path)
+                except Exception as e:
+                    print(f"Erro ao remover arquivo anterior: {e}")
         
         # Atualizar foto de perfil
-        usuario.foto_perfil = data['foto_url']
+        usuario.foto_perfil = file_path
         usuario.updated_at = datetime.utcnow()
         
         db.session.commit()
@@ -2268,6 +2865,19 @@ def debug_produtos():
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+# Endpoint para servir arquivos estáticos de upload
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    """Serve arquivos de upload"""
+    try:
+        return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+    except Exception as e:
+        print(f"Erro ao servir arquivo: {e}")
+        return jsonify({'error': 'Arquivo não encontrado'}), 404
+
+# Registrar blueprint de notificações
+app.register_blueprint(notifications_bp, url_prefix='/api')
 
 if __name__ == '__main__':
     with app.app_context():

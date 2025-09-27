@@ -1,0 +1,29 @@
+[
+  {
+    "nome": "Produto Teste 1",
+    "categoria": "Eletrônicos",
+    "preco": 299.99,
+    "quantidade": 10,
+    "descricao": "Produto de teste para importação",
+    "codigo_barras": "1234567890123",
+    "fornecedor": "Fornecedor Teste",
+    "data_validade": "2025-12-31"
+  },
+  {
+    "nome": "Produto Teste 2",
+    "categoria": "Roupas",
+    "preco": 89.90,
+    "quantidade": 25,
+    "descricao": "Segundo produto de teste",
+    "codigo_barras": "9876543210987",
+    "fornecedor": "Outro Fornecedor"
+  },
+  {
+    "nome": "Produto Teste 3",
+    "categoria": "Casa",
+    "preco": 45.50,
+    "quantidade": 5,
+    "descricao": "Terceiro produto de teste",
+    "fornecedor": "Casa & Cia"
+  }
+]

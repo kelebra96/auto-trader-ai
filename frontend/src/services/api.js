@@ -1,7 +1,9 @@
 import axios from 'axios';
 
 // Configuração base da API
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+  ? 'http://localhost:3001/api' 
+  : `http://${window.location.hostname}:3001/api`;
 
 // Criar instância do axios
 const api = axios.create({
@@ -45,14 +47,14 @@ api.interceptors.response.use(
 export const authService = {
   login: async (email, password) => {
     try {
-      const response = await api.post('/auth/login', { email, password });
-      const { token, usuario } = response.data;
+      const response = await api.post('/auth/login', { email, senha: password });
+      const { token, user } = response.data.data;
       
       // Salvar token e dados do usuário
       localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(usuario));
+      localStorage.setItem('user', JSON.stringify(user));
       
-      return { user: usuario, token };
+      return { user, token };
     } catch (error) {
       throw new Error(error.response?.data?.error || 'Erro ao fazer login');
     }
@@ -60,14 +62,21 @@ export const authService = {
 
   register: async (userData) => {
     try {
-      const response = await api.post('/auth/register', userData);
-      const { token, usuario } = response.data;
+      // Convert password field to senha for backend compatibility
+      const dataToSend = { ...userData };
+      if (dataToSend.password) {
+        dataToSend.senha = dataToSend.password;
+        delete dataToSend.password;
+      }
+      
+      const response = await api.post('/auth/register', dataToSend);
+      const { token, user } = response.data.data;
       
       // Salvar token e dados do usuário
       localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(usuario));
+      localStorage.setItem('user', JSON.stringify(user));
       
-      return { user: usuario, token };
+      return { user, token };
     } catch (error) {
       throw new Error(error.response?.data?.error || 'Erro ao criar conta');
     }
@@ -127,6 +136,30 @@ export const productService = {
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.error || 'Erro ao deletar produto');
+    }
+  },
+
+  // Importar produtos
+  importProducts: async (formData) => {
+    try {
+      const response = await api.post('/produtos/import', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.error || 'Erro ao importar produtos');
+    }
+  },
+
+  // Buscar produtos vencendo
+  getProdutosVencendo: async (dias = 7) => {
+    try {
+      const response = await api.get(`/produtos/vencendo?dias=${dias}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.error || 'Erro ao carregar produtos vencendo');
     }
   }
 };
@@ -616,6 +649,92 @@ export const userService = {
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.error || 'Erro ao atualizar perfil');
+    }
+  }
+};
+
+// Serviços de fornecedores
+export const supplierService = {
+  // Listar todos os fornecedores
+  getSuppliers: async () => {
+    try {
+      const response = await api.get('/fornecedores');
+      return response.data.fornecedores;
+    } catch (error) {
+      throw new Error(error.response?.data?.error || 'Erro ao carregar fornecedores');
+    }
+  },
+
+  // Criar novo fornecedor
+  createSupplier: async (supplierData) => {
+    try {
+      const response = await api.post('/fornecedores', supplierData);
+      return response.data.fornecedor;
+    } catch (error) {
+      throw new Error(error.response?.data?.error || 'Erro ao criar fornecedor');
+    }
+  },
+
+  // Atualizar fornecedor
+  updateSupplier: async (supplierId, supplierData) => {
+    try {
+      const response = await api.put(`/fornecedores/${supplierId}`, supplierData);
+      return response.data.fornecedor;
+    } catch (error) {
+      throw new Error(error.response?.data?.error || 'Erro ao atualizar fornecedor');
+    }
+  },
+
+  // Deletar fornecedor
+  deleteSupplier: async (supplierId) => {
+    try {
+      const response = await api.delete(`/fornecedores/${supplierId}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.error || 'Erro ao deletar fornecedor');
+    }
+  }
+};
+
+// Serviços de empresas
+export const companyService = {
+  // Listar todas as empresas
+  getCompanies: async () => {
+    try {
+      const response = await api.get('/empresas');
+      return response.data.empresas;
+    } catch (error) {
+      throw new Error(error.response?.data?.error || 'Erro ao carregar empresas');
+    }
+  },
+
+  // Criar nova empresa
+  createCompany: async (companyData) => {
+    try {
+      const response = await api.post('/empresas', companyData);
+      return response.data.empresa;
+    } catch (error) {
+      throw new Error(error.response?.data?.error || 'Erro ao criar empresa');
+    }
+  },
+
+  // Atualizar empresa
+  updateCompany: async (companyId, companyData) => {
+    try {
+      const response = await api.put(`/empresas/${companyId}`, companyData);
+      return response.data.empresa;
+    } catch (error) {
+      throw new Error(error.response?.data?.error || 'Erro ao atualizar empresa');
+    }
+  },
+
+  // Deletar empresa
+  deleteCompany: async (companyId) => {
+    try {
+      const response = await api.delete(`/empresas/${companyId}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.error || 'Erro ao deletar empresa');
     }
   }
 };

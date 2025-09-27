@@ -16,11 +16,25 @@ class Config:
     
     # Banco de dados
     DATABASE_URL = os.environ.get('DATABASE_URL') or 'sqlite:///app.db'
+    
+    # Configuração MySQL
+    MYSQL_HOST = os.environ.get('MYSQL_HOST', 'localhost')
+    MYSQL_PORT = int(os.environ.get('MYSQL_PORT', 3306))
+    MYSQL_USER = os.environ.get('MYSQL_USER', 'root')
+    MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD', '')
+    MYSQL_DATABASE = os.environ.get('MYSQL_DATABASE', 'auto_trader_ai')
+    
+    # Construir URL do MySQL se as variáveis estiverem definidas
+    if os.environ.get('USE_MYSQL', 'false').lower() == 'true':
+        DATABASE_URL = f'mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DATABASE}?charset=utf8mb4'
+    
     SQLALCHEMY_DATABASE_URI = DATABASE_URL
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_pre_ping': True,
         'pool_recycle': 300,
+        'pool_timeout': 20,
+        'max_overflow': 0,
     }
     
     # JWT

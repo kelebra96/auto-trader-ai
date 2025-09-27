@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Login - Frontend</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Teste de Login - Frontend</h1>
+        
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="email" id="email" value="kelebra96@gmail.com" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Senha:</label>
+                <input type="password" id="password" value="Ro04041932..#@" required>
+            </div>
+            
+            <button type="submit">Fazer Login</button>
+            <button type="button" onclick="testConnection()">Testar Conexão</button>
+            <button type="button" onclick="clearResults()">Limpar</button>
+        </form>
+        
+        <div id="result"></div>
+        
+        <h2>Informações:</h2>
+        <ul>
+            <li><strong>Backend URL:</strong> <span id="backendUrl"></span></li>
+            <li><strong>Frontend URL:</strong> <span id="frontendUrl"></span></li>
+            <li><strong>Admin criado:</strong> kelebra96@gmail.com</li>
+        </ul>
+    </div>
+
+    <script>
+        // Configurar URLs
+        const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+            ? 'http://localhost:5000/api' 
+            : `http://${window.location.hostname}:5000/api`;
+        
+        document.getElementById('backendUrl').textContent = API_BASE_URL;
+        document.getElementById('frontendUrl').textContent = window.location.origin;
+
+        function showResult(message, type = 'info') {
+            const resultDiv = document.getElementById('result');
+            resultDiv.className = `result ${type}`;
+            resultDiv.textContent = message;
+        }
+
+        function clearResults() {
+            document.getElementById('result').textContent = '';
+        }
+
+        async function testConnection() {
+            showResult('🔍 Testando conexão com o backend...', 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE_URL.replace('/api', '')}/api/health`);
+                const data = await response.json();
+                
+                showResult(`✅ Conexão OK!\nStatus: ${response.status}\nResposta: ${JSON.stringify(data, null, 2)}`, 'success');
+            } catch (error) {
+                showResult(`❌ Erro de conexão:\n${error.message}`, 'error');
+            }
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            showResult('🔄 Fazendo login...', 'info');
+            
+            try {
+                console.log('🔍 Tentando login com:', { email, password: '*'.repeat(password.length) });
+                console.log('🌐 URL da API:', `${API_BASE_URL}/auth/login`);
+                
+                const response = await fetch(`${API_BASE_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                console.log('📊 Status da resposta:', response.status);
+                console.log('📄 Headers da resposta:', Object.fromEntries(response.headers.entries()));
+                
+                const data = await response.json();
+                console.log('📝 Dados da resposta:', data);
+                
+                if (response.ok) {
+                    // Simular o que o frontend faz
+                    if (data.token) {
+                        localStorage.setItem('token', data.token);
+                        localStorage.setItem('user', JSON.stringify(data.usuario));
+                        
+                        showResult(`✅ Login realizado com sucesso!
+Token: ${data.token.substring(0, 50)}...
+Usuário: ${JSON.stringify(data.usuario, null, 2)}
+Token salvo no localStorage: ✅
+Usuário salvo no localStorage: ✅`, 'success');
+                    } else {
+                        showResult(`⚠️ Login retornou sucesso mas sem token:
+${JSON.stringify(data, null, 2)}`, 'error');
+                    }
+                } else {
+                    showResult(`❌ Falha no login:
+Status: ${response.status}
+Erro: ${data.error || 'Erro desconhecido'}
+Resposta completa: ${JSON.stringify(data, null, 2)}`, 'error');
+                }
+                
+            } catch (error) {
+                console.error('❌ Erro no login:', error);
+                showResult(`❌ Erro no login:
+${error.message}
+Stack: ${error.stack}`, 'error');
+            }
+        });
+
+        // Verificar se já existe token
+        window.addEventListener('load', function() {
+            const existingToken = localStorage.getItem('token');
+            const existingUser = localStorage.getItem('user');
+            
+            if (existingToken) {
+                showResult(`ℹ️ Token existente encontrado:
+Token: ${existingToken.substring(0, 50)}...
+Usuário: ${existingUser}`, 'info');
+            }
+        });
+    </script>
+</body>
+</html>
