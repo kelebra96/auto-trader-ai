@@ -1,1 +1,0 @@
-# Middleware de segurança e validação
