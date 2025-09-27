@@ -9,6 +9,8 @@ import {
   BarChart3, 
   Settings, 
   Users, 
+  UserCheck,
+  Shield,
   HelpCircle,
   Smartphone
 } from 'lucide-react';
@@ -79,6 +81,20 @@ const Sidebar = ({ isOpen, onClose }) => {
   ].filter(item => hasPermission(item.permission));
 
   const secondaryNavigation = [
+    {
+      name: 'Perfis',
+      href: '/perfis',
+      icon: UserCheck,
+      current: location.pathname.startsWith('/perfis'),
+      role: 'admin'
+    },
+    {
+      name: 'Permissões',
+      href: '/permissoes',
+      icon: Shield,
+      current: location.pathname.startsWith('/permissoes'),
+      role: 'admin'
+    },
     {
       name: 'Configurações',
       href: '/configuracoes',

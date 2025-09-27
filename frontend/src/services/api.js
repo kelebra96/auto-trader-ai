@@ -739,6 +739,18 @@ export const companyService = {
   }
 };
 
+export const permissionsService = {
+  getPermissions: async () => {
+    try {
+      const response = await api.get('/usuarios/permissoes');
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao carregar permissões:', error);
+      throw error;
+    }
+  }
+};
+
 export const testService = {
   test: async () => {
     try {

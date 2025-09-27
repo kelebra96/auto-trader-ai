@@ -43,6 +43,10 @@ const Alerta = require('./Alerta')(sequelize, DataTypes);
 const ConfiguracaoAlerta = require('./ConfiguracaoAlerta')(sequelize, DataTypes);
 const Venda = require('./Venda')(sequelize, DataTypes);
 const ConfiguracaoUsuario = require('./ConfiguracaoUsuario')(sequelize, DataTypes);
+const Permission = require('./Permission')(sequelize, DataTypes);
+const UserProfile = require('./UserProfile')(sequelize, DataTypes);
+const ProfilePermission = require('./ProfilePermission')(sequelize, DataTypes);
+const UserPermission = require('./UserPermission')(sequelize, DataTypes);
 
 // Definir associações
 const models = {
@@ -54,7 +58,11 @@ const models = {
   Alerta,
   ConfiguracaoAlerta,
   Venda,
-  ConfiguracaoUsuario
+  ConfiguracaoUsuario,
+  Permission,
+  UserProfile,
+  ProfilePermission,
+  UserPermission
 };
 
 // Configurar associações

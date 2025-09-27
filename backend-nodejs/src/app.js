@@ -12,6 +12,7 @@ const { requestLogger } = require('./middleware/logger');
 
 // Importar rotas
 const authRoutes = require('./routes/auth');
+const usuarioRoutes = require('./routes/usuarios');
 const empresaRoutes = require('./routes/empresas');
 const fornecedorRoutes = require('./routes/fornecedores');
 const produtoRoutes = require('./routes/produtos');
@@ -19,6 +20,9 @@ const entradaRoutes = require('./routes/entradas');
 const vendaRoutes = require('./routes/vendas');
 const alertaRoutes = require('./routes/alertas');
 const configuracaoRoutes = require('./routes/configuracoes');
+const aiRoutes = require('./routes/ai');
+const profileRoutes = require('./routes/profiles');
+const permissionRoutes = require('./routes/permissions');
 
 // Importar modelos para sincronização
 const db = require('./models');
@@ -88,8 +92,9 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Rotas da API
+// Rotas
 app.use('/api/auth', authRoutes);
+app.use('/api/usuarios', usuarioRoutes);
 app.use('/api/empresas', empresaRoutes);
 app.use('/api/fornecedores', fornecedorRoutes);
 app.use('/api/produtos', produtoRoutes);
@@ -97,6 +102,9 @@ app.use('/api/entradas', entradaRoutes);
 app.use('/api/vendas', vendaRoutes);
 app.use('/api/alertas', alertaRoutes);
 app.use('/api/configuracoes', configuracaoRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api/profiles', profileRoutes);
+app.use('/api/permissions', permissionRoutes);
 
 // Rota para servir arquivos estáticos (se necessário)
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
@@ -121,7 +129,7 @@ async function initializeDatabase() {
 
     // Sincronizar modelos (apenas em desenvolvimento)
     if (process.env.NODE_ENV === 'development') {
-      await db.sequelize.sync({ alter: true });
+      // await db.sequelize.sync({ alter: true }); // Temporariamente desabilitado para preservar coluna granted
       console.log('✅ Modelos sincronizados com o banco de dados.');
     }
 

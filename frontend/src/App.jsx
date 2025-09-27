@@ -16,6 +16,8 @@ import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import Profile from './pages/Profile';
 import Users from './pages/Users';
+import UserProfiles from './components/UserProfiles';
+import PermissionManager from './components/PermissionManager';
 import MobileDashboard from './pages/mobile/MobileDashboard';
 import MobileScanner from './pages/mobile/MobileScanner';
 import TestLogin from './components/TestLogin';
@@ -99,32 +101,32 @@ function App() {
             >
               <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="dashboard" element={
-                <ProtectedRoute requiredPermission="view_dashboard">
+                <ProtectedRoute requiredPermission="dashboard_view">
                   <Dashboard />
                 </ProtectedRoute>
               } />
               <Route path="produtos/*" element={
-                <ProtectedRoute requiredPermission="view_products">
+                <ProtectedRoute requiredPermission="products_view">
                   <Products />
                 </ProtectedRoute>
               } />
               <Route path="fornecedores" element={
-                <ProtectedRoute requiredPermission="view_suppliers">
+                <ProtectedRoute requiredPermission="suppliers_view">
                   <Suppliers />
                 </ProtectedRoute>
               } />
               <Route path="empresas" element={
-                <ProtectedRoute requiredPermission="view_companies">
+                <ProtectedRoute requiredPermission="companies_view">
                   <Companies />
                 </ProtectedRoute>
               } />
               <Route path="alertas" element={
-                <ProtectedRoute requiredPermission="view_alerts">
+                <ProtectedRoute requiredPermission="alerts_view">
                   <Alerts />
                 </ProtectedRoute>
               } />
               <Route path="relatorios" element={
-                <ProtectedRoute requiredPermission="view_reports">
+                <ProtectedRoute requiredPermission="reports_view">
                   <Reports />
                 </ProtectedRoute>
               } />
@@ -134,8 +136,18 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="usuarios" element={
-                <ProtectedRoute requiredPermission="view_all_users">
+                <ProtectedRoute requiredPermission="users_view">
                   <Users />
+                </ProtectedRoute>
+              } />
+              <Route path="perfis" element={
+                <ProtectedRoute requiredRole="admin">
+                  <UserProfiles />
+                </ProtectedRoute>
+              } />
+              <Route path="permissoes" element={
+                <ProtectedRoute requiredRole="admin">
+                  <PermissionManager />
                 </ProtectedRoute>
               } />
               <Route path="perfil" element={<Profile user={user} />} />

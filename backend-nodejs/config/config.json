@@ -1,17 +1,29 @@
 {
   "development": {
-    "dialect": "sqlite",
-    "storage": "./database.sqlite",
+    "username": "root",
+    "password": "AutoTrader2024!@#",
+    "database": "auto_trader_ai",
+    "host": "localhost",
+    "port": 3306,
+    "dialect": "mysql",
     "logging": false
   },
   "test": {
-    "dialect": "sqlite",
-    "storage": ":memory:",
+    "username": "root",
+    "password": "AutoTrader2024!@#",
+    "database": "auto_trader_ai_test",
+    "host": "localhost",
+    "port": 3306,
+    "dialect": "mysql",
     "logging": false
   },
   "production": {
-    "dialect": "sqlite",
-    "storage": "./database.sqlite",
+    "username": "root",
+    "password": "AutoTrader2024!@#",
+    "database": "auto_trader_ai",
+    "host": "localhost",
+    "port": 3306,
+    "dialect": "mysql",
     "logging": false
   }
 }

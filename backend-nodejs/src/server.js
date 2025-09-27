@@ -127,8 +127,8 @@ const startServer = async () => {
     
     // Sincronizar modelos (apenas em desenvolvimento)
     if (process.env.NODE_ENV === 'development') {
-      await sequelize.sync({ alter: true });
-      logger.info('Modelos sincronizados com o banco de dados');
+      // await sequelize.sync({ alter: true }); // Temporariamente desabilitado para preservar coluna granted
+      logger.info('✅ Modelos sincronizados com o banco de dados.');
     }
     
     app.listen(PORT, '0.0.0.0', () => {

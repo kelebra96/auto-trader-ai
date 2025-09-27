@@ -17,6 +17,7 @@
   "dependencies": {
     "@tailwindcss/forms": "^0.5.10",
     "@tailwindcss/typography": "^0.5.19",
+    "@tanstack/react-query": "^4.36.1",
     "axios": "^1.3.4",
     "clsx": "^1.2.1",
     "date-fns": "^2.29.3",
@@ -26,7 +27,6 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-hook-form": "^7.43.5",
-    "react-query": "^3.39.3",
     "react-router-dom": "^6.8.1",
     "react-table": "^7.8.0",
     "recharts": "^2.5.0",
@@ -39,7 +39,7 @@
     "@testing-library/user-event": "^14.4.3",
     "@types/react": "^18.0.28",
     "@types/react-dom": "^18.0.11",
-    "@vitejs/plugin-react": "^3.1.0",
+    "@vitejs/plugin-react": "^5.0.4",
     "@vitest/ui": "^0.29.3",
     "autoprefixer": "^10.4.14",
     "c8": "^7.13.0",
@@ -49,8 +49,8 @@
     "eslint-plugin-react-refresh": "^0.3.4",
     "postcss": "^8.4.21",
     "tailwindcss": "^3.2.7",
-    "vite": "^4.2.0",
-    "vitest": "^0.29.3"
+    "vite": "^7.1.7",
+    "vitest": "^3.2.4"
   },
   "browserslist": {
     "production": [
