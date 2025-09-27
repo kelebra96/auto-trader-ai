@@ -17,19 +17,24 @@ import {
   MoreVertical,
   UserCheck,
   UserX,
-  Key
+  Key,
+  Settings
 } from 'lucide-react';
+import api from '../services/api';
 
 const Users = () => {
   const [usuarios, setUsuarios] = useState([]);
+  const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterCargo, setFilterCargo] = useState('');
+  const [filterProfile, setFilterProfile] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
   const [showUserModal, setShowUserModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showPermissionsModal, setShowPermissionsModal] = useState(false);
   const [modalMode, setModalMode] = useState('view'); // view, edit, create
+  const [userPermissions, setUserPermissions] = useState([]);
   const { showSuccess, showError } = useNotifications();
 
   // Estados para formulários
@@ -39,7 +44,7 @@ const Users = () => {
     telefone: '',
     empresa: '',
     bio: '',
-    cargo: 'usuario',
+    profile_id: null,
     ativo: true
   });
 
@@ -49,22 +54,16 @@ const Users = () => {
     confirmar_senha: ''
   });
 
-  const cargos = [
-    { value: 'admin', label: 'Administrador', color: 'bg-red-100 text-red-800' },
-    { value: 'gerente', label: 'Gerente', color: 'bg-blue-100 text-blue-800' },
-    { value: 'usuario', label: 'Usuário', color: 'bg-green-100 text-green-800' },
-    { value: 'visualizador', label: 'Visualizador', color: 'bg-gray-100 text-gray-800' }
-  ];
-
   useEffect(() => {
     carregarUsuarios();
+    carregarProfiles();
   }, []);
 
   const carregarUsuarios = async () => {
     try {
       setLoading(true);
-      const data = await userService.getUsuarios();
-      setUsuarios(data.usuarios || []);
+      const response = await api.get('/users');
+      setUsuarios(response.data.data || []);
     } catch (error) {
       showError('Erro ao carregar usuários: ' + error.message);
     } finally {
@@ -72,16 +71,41 @@ const Users = () => {
     }
   };
 
+  const carregarProfiles = async () => {
+    try {
+      const response = await api.get('/profiles');
+      setProfiles(response.data.data || []);
+    } catch (error) {
+      console.error('Erro ao carregar perfis:', error);
+    }
+  };
+
+  const carregarPermissoesUsuario = async (userId) => {
+    try {
+      const response = await api.get(`/users/${userId}/permissions`);
+      setUserPermissions(response.data.data || []);
+    } catch (error) {
+      console.error('Erro ao carregar permissões do usuário:', error);
+      showError('Erro ao carregar permissões do usuário');
+    }
+  };
+
   const handleViewUser = (usuario) => {
     setSelectedUser(usuario);
-    setUserForm(usuario);
+    setUserForm({
+      ...usuario,
+      profile_id: usuario.profile?.id || null
+    });
     setModalMode('view');
     setShowUserModal(true);
   };
 
   const handleEditUser = (usuario) => {
     setSelectedUser(usuario);
-    setUserForm(usuario);
+    setUserForm({
+      ...usuario,
+      profile_id: usuario.profile?.id || null
+    });
     setModalMode('edit');
     setShowUserModal(true);
   };
@@ -96,7 +120,7 @@ const Users = () => {
       nome_estabelecimento: '',
       password: '',
       bio: '',
-      cargo: 'usuario',
+      profile_id: null,
       ativo: true
     });
     setModalMode('create');
@@ -112,7 +136,7 @@ const Users = () => {
       }
 
       if (modalMode === 'edit') {
-        await userService.updateUsuario(selectedUser.id, userForm);
+        await api.put(`/users/${selectedUser.id}`, userForm);
         showSuccess('Usuário atualizado com sucesso!');
       } else if (modalMode === 'create') {
         // Validações adicionais para criação
@@ -125,25 +149,25 @@ const Users = () => {
           return;
         }
 
-        await userService.createUsuario(userForm);
+        await api.post('/users', userForm);
         showSuccess('Usuário criado com sucesso!');
       }
       
       setShowUserModal(false);
       carregarUsuarios();
     } catch (error) {
-      showError('Erro ao salvar usuário: ' + error.message);
+      showError('Erro ao salvar usuário: ' + (error.response?.data?.message || error.message));
     }
   };
 
   const handleDeleteUser = async (usuarioId) => {
     if (window.confirm('Tem certeza que deseja desativar este usuário?')) {
       try {
-        await userService.deleteUsuario(usuarioId);
+        await api.delete(`/users/${usuarioId}`);
         showSuccess('Usuário desativado com sucesso!');
         carregarUsuarios();
       } catch (error) {
-        showError('Erro ao desativar usuário: ' + error.message);
+        showError('Erro ao desativar usuário: ' + (error.response?.data?.message || error.message));
       }
     }
   };
@@ -159,38 +183,67 @@ const Users = () => {
   };
 
   const handleSavePassword = async () => {
-    if (passwordForm.nova_senha !== passwordForm.confirmar_senha) {
-      showError('As senhas não coincidem');
-      return;
-    }
-
     try {
-      await userService.alterarSenha(selectedUser.id, {
-        senha_atual: passwordForm.senha_atual,
-        nova_senha: passwordForm.nova_senha
+      if (!passwordForm.nova_senha || !passwordForm.confirmar_senha) {
+        showError('Todos os campos são obrigatórios');
+        return;
+      }
+
+      if (passwordForm.nova_senha !== passwordForm.confirmar_senha) {
+        showError('As senhas não coincidem');
+        return;
+      }
+
+      if (passwordForm.nova_senha.length < 6) {
+        showError('A senha deve ter pelo menos 6 caracteres');
+        return;
+      }
+
+      await api.put(`/users/${selectedUser.id}/password`, {
+        currentPassword: passwordForm.senha_atual,
+        newPassword: passwordForm.nova_senha
       });
+
       showSuccess('Senha alterada com sucesso!');
       setShowPasswordModal(false);
     } catch (error) {
-      showError('Erro ao alterar senha: ' + error.message);
+      showError('Erro ao alterar senha: ' + (error.response?.data?.message || error.message));
     }
+  };
+
+  const handleViewPermissions = async (usuario) => {
+    setSelectedUser(usuario);
+    await carregarPermissoesUsuario(usuario.id);
+    setShowPermissionsModal(true);
   };
 
   const filteredUsers = usuarios.filter(usuario => {
     const matchesSearch = usuario.nome_completo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         usuario.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         usuario.empresa?.toLowerCase().includes(searchTerm.toLowerCase());
+                         usuario.email?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesCargo = !filterCargo || usuario.cargo === filterCargo;
+    const matchesProfile = !filterProfile || usuario.profile?.id === parseInt(filterProfile);
+    
     const matchesStatus = !filterStatus || 
                          (filterStatus === 'ativo' && usuario.ativo) ||
                          (filterStatus === 'inativo' && !usuario.ativo);
     
-    return matchesSearch && matchesCargo && matchesStatus;
+    return matchesSearch && matchesProfile && matchesStatus;
   });
 
-  const getCargoInfo = (cargo) => {
-    return cargos.find(c => c.value === cargo) || cargos[2];
+  const getProfileInfo = (profile) => {
+    if (!profile) return { name: 'Sem perfil', color: 'bg-gray-100 text-gray-800' };
+    
+    const colors = {
+      'admin': 'bg-red-100 text-red-800',
+      'gerente': 'bg-blue-100 text-blue-800',
+      'usuario': 'bg-green-100 text-green-800',
+      'visualizador': 'bg-gray-100 text-gray-800'
+    };
+    
+    return {
+      name: profile.name,
+      color: colors[profile.name.toLowerCase()] || 'bg-purple-100 text-purple-800'
+    };
   };
 
   if (loading) {
@@ -238,13 +291,13 @@ const Users = () => {
           </div>
           
           <select
-            value={filterCargo}
-            onChange={(e) => setFilterCargo(e.target.value)}
+            value={filterProfile}
+            onChange={(e) => setFilterProfile(e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
-            <option value="">Todos os cargos</option>
-            {cargos.map(cargo => (
-              <option key={cargo.value} value={cargo.value}>{cargo.label}</option>
+            <option value="">Todos os perfis</option>
+            {profiles.map(profile => (
+              <option key={profile.id} value={profile.id}>{profile.name}</option>
             ))}
           </select>
 
@@ -278,7 +331,7 @@ const Users = () => {
                   Contato
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Cargo
+                  Perfil
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
@@ -293,7 +346,7 @@ const Users = () => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredUsers.map((usuario) => {
-                const cargoInfo = getCargoInfo(usuario.cargo);
+                const profileInfo = getProfileInfo(usuario.profile);
                 return (
                   <tr key={usuario.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -338,8 +391,8 @@ const Users = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${cargoInfo.color}`}>
-                        {cargoInfo.label}
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${profileInfo.color}`}>
+                        {profileInfo.name}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -376,6 +429,13 @@ const Users = () => {
                           title="Editar"
                         >
                           <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleViewPermissions(usuario)}
+                          className="text-purple-600 hover:text-purple-900"
+                          title="Ver Permissões"
+                        >
+                          <Shield className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => handleChangePassword(usuario)}
@@ -499,16 +559,17 @@ const Users = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Cargo
+                    Perfil
                   </label>
                   <select
-                    value={userForm.cargo || 'usuario'}
-                    onChange={(e) => setUserForm({...userForm, cargo: e.target.value})}
+                    value={userForm.profile_id || ''}
+                    onChange={(e) => setUserForm({...userForm, profile_id: e.target.value ? parseInt(e.target.value) : null})}
                     disabled={modalMode === 'view'}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                   >
-                    {cargos.map(cargo => (
-                      <option key={cargo.value} value={cargo.value}>{cargo.label}</option>
+                    <option value="">Selecione um perfil</option>
+                    {profiles.map(profile => (
+                      <option key={profile.id} value={profile.id}>{profile.name}</option>
                     ))}
                   </select>
                 </div>
@@ -645,6 +706,93 @@ const Users = () => {
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
               >
                 Alterar Senha
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Permissões */}
+      {showPermissionsModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-2/3 shadow-lg rounded-md bg-white">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium text-gray-900">
+                Permissões - {selectedUser?.nome_completo}
+              </h3>
+              <button
+                onClick={() => setShowPermissionsModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Perfil do usuário */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">Perfil Atual</h4>
+                <div className="flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-blue-600" />
+                  <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getProfileInfo(selectedUser?.profile).color}`}>
+                    {getProfileInfo(selectedUser?.profile).name}
+                  </span>
+                </div>
+              </div>
+
+              {/* Lista de permissões */}
+              <div>
+                <h4 className="text-sm font-medium text-gray-700 mb-3">Permissões Efetivas</h4>
+                <div className="max-h-96 overflow-y-auto">
+                  {userPermissions.length > 0 ? (
+                    <div className="space-y-2">
+                      {userPermissions.map((permission) => (
+                        <div key={permission.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {permission.name}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {permission.description}
+                            </div>
+                            <div className="text-xs text-blue-600 mt-1">
+                              Categoria: {permission.category}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                              permission.granted 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-red-100 text-red-800'
+                            }`}>
+                              {permission.granted ? 'Permitido' : 'Negado'}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              {permission.source === 'profile' ? 'Via Perfil' : 'Individual'}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Shield className="mx-auto h-12 w-12 text-gray-400" />
+                      <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhuma permissão encontrada</h3>
+                      <p className="mt-1 text-sm text-gray-500">
+                        Este usuário não possui permissões configuradas.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end mt-6">
+              <button
+                onClick={() => setShowPermissionsModal(false)}
+                className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+              >
+                Fechar
               </button>
             </div>
           </div>

@@ -142,6 +142,20 @@ module.exports = (sequelize, DataTypes) => {
       as: 'configuracoes_alerta',
       onDelete: 'CASCADE'
     });
+
+    // Relacionamento com UserProfile
+    User.belongsTo(models.UserProfile, {
+      foreignKey: 'profile_id',
+      as: 'profile'
+    });
+
+    // Relacionamento many-to-many com Permissions através de UserPermissions
+    User.belongsToMany(models.Permission, {
+      through: 'UserPermissions',
+      foreignKey: 'user_id',
+      otherKey: 'permission_id',
+      as: 'permissions'
+    });
   };
 
   // Métodos de instância

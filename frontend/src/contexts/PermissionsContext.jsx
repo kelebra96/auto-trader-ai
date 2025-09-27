@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import api from '../services/api';
+import { permissionsService } from '../services/api';
 
 const PermissionsContext = createContext();
 
@@ -34,14 +34,14 @@ export const PermissionsProvider = ({ children }) => {
       }
 
       console.log('🌐 [PermissionsContext] Fazendo chamada para /usuarios/permissoes...');
-      const response = await api.get('/usuarios/permissoes');
+      const data = await permissionsService.getPermissions();
       
-      console.log('✅ [PermissionsContext] Resposta recebida:', response.data);
+      console.log('✅ [PermissionsContext] Resposta recebida:', data);
       
-      if (response.data) {
-        const newPermissions = response.data.permissoes || [];
-        const newCargo = response.data.cargo || '';
-        const newUser = response.data.usuario || null;
+      if (data) {
+        const newPermissions = data.permissoes || [];
+        const newCargo = data.cargo || '';
+        const newUser = data.usuario || null;
         
         console.log('📝 [PermissionsContext] Atualizando estado:');
         console.log('   Permissões:', newPermissions);

@@ -6,11 +6,13 @@ const config = {
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME || 'auto_trader_ai',
     host: process.env.DB_HOST || 'localhost',
-    port: process.env.DB_PORT || 3306,
-    dialect: process.env.DB_DIALECT || 'sqlite',
+    port: process.env.DB_PORT || (process.env.DB_DIALECT === 'postgres' ? 5432 : 3306),
+    dialect: process.env.DB_DIALECT || 'postgres',
     storage: process.env.DB_DIALECT === 'sqlite' ? './database.sqlite' : undefined,
     dialectOptions: process.env.DB_DIALECT === 'mysql' ? {
       charset: 'utf8mb4',
+      timezone: process.env.TIMEZONE || '-03:00'
+    } : process.env.DB_DIALECT === 'postgres' ? {
       timezone: process.env.TIMEZONE || '-03:00'
     } : undefined,
     pool: {
@@ -32,8 +34,8 @@ const config = {
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_TEST_NAME || 'auto_trader_ai_test',
     host: process.env.DB_HOST || 'localhost',
-    port: process.env.DB_PORT || 3306,
-    dialect: process.env.DB_DIALECT || 'sqlite',
+    port: process.env.DB_PORT || (process.env.DB_DIALECT === 'postgres' ? 5432 : 3306),
+    dialect: process.env.DB_DIALECT || 'postgres',
     storage: process.env.DB_DIALECT === 'sqlite' ? './test_database.sqlite' : undefined,
     logging: false,
     define: {
@@ -48,8 +50,8 @@ const config = {
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
     host: process.env.DB_HOST,
-    port: process.env.DB_PORT || 3306,
-    dialect: process.env.DB_DIALECT || 'mysql',
+    port: process.env.DB_PORT || (process.env.DB_DIALECT === 'postgres' ? 5432 : 3306),
+    dialect: process.env.DB_DIALECT || 'postgres',
     dialectOptions: {
       charset: 'utf8mb4',
       timezone: process.env.TIMEZONE || '-03:00',

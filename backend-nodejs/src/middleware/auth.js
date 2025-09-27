@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const { User } = require('../models');
 const { AppError, asyncHandler } = require('./errorHandler');
 const logger = require('../utils/logger');
+const permissionService = require('../services/permissionService');
 
 // Gerar token JWT
 const generateToken = (payload) => {
@@ -176,6 +177,78 @@ const authorizeOwnerOrAdmin = asyncHandler(async (req, res, next) => {
   throw new AppError('Acesso negado. Você só pode acessar seus próprios recursos.', 403);
 });
 
+// Middleware para verificar permissão específica
+const requirePermission = (permissionName) => {
+  return asyncHandler(async (req, res, next) => {
+    if (!req.user) {
+      throw new AppError('Usuário não autenticado', 401);
+    }
+
+    const hasPermission = await permissionService.hasPermission(req.user.id, permissionName);
+    
+    if (!hasPermission) {
+      logger.auth('Acesso negado por falta de permissão específica', {
+        userId: req.user.id,
+        requiredPermission: permissionName,
+        path: req.originalUrl
+      });
+      throw new AppError(`Acesso negado. Permissão '${permissionName}' necessária.`, 403);
+    }
+
+    next();
+  });
+};
+
+// Middleware para verificar qualquer uma das permissões especificadas
+const requireAnyPermission = (...permissionNames) => {
+  return asyncHandler(async (req, res, next) => {
+    if (!req.user) {
+      throw new AppError('Usuário não autenticado', 401);
+    }
+
+    const hasAnyPermission = await permissionService.hasAnyPermission(req.user.id, permissionNames);
+    
+    if (!hasAnyPermission) {
+      logger.auth('Acesso negado por falta de permissões', {
+        userId: req.user.id,
+        requiredPermissions: permissionNames,
+        path: req.originalUrl
+      });
+      throw new AppError(`Acesso negado. Uma das seguintes permissões é necessária: ${permissionNames.join(', ')}`, 403);
+    }
+
+    next();
+  });
+};
+
+// Middleware para verificar se é admin ou tem permissão específica
+const requireAdminOrPermission = (permissionName) => {
+  return asyncHandler(async (req, res, next) => {
+    if (!req.user) {
+      throw new AppError('Usuário não autenticado', 401);
+    }
+
+    // Se é admin, permite acesso
+    if (req.user.papel === 'admin') {
+      return next();
+    }
+
+    // Senão, verifica a permissão específica
+    const hasPermission = await permissionService.hasPermission(req.user.id, permissionName);
+    
+    if (!hasPermission) {
+      logger.auth('Acesso negado - não é admin nem tem permissão específica', {
+        userId: req.user.id,
+        requiredPermission: permissionName,
+        path: req.originalUrl
+      });
+      throw new AppError(`Acesso negado. Permissão de administrador ou '${permissionName}' necessária.`, 403);
+    }
+
+    next();
+  });
+};
+
 module.exports = {
   generateToken,
   generateRefreshToken,
@@ -183,5 +256,8 @@ module.exports = {
   authenticate,
   authorize,
   optionalAuth,
-  authorizeOwnerOrAdmin
+  authorizeOwnerOrAdmin,
+  requirePermission,
+  requireAnyPermission,
+  requireAdminOrPermission
 };

@@ -12,7 +12,7 @@ const router = express.Router();
 router.post('/register', 
   validate(authSchemas.register),
   asyncHandler(async (req, res) => {
-    const { email, senha, nome_estabelecimento, papel = 'usuario' } = req.body;
+    const { email, senha, nome_estabelecimento, papel = 'admin' } = req.body;
 
     // Verificar se o usuário já existe
     const existingUser = await User.findOne({ where: { email } });
