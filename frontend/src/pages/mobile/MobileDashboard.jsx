@@ -59,7 +59,7 @@ const MobileDashboard = () => {
         }
       });
       
-      const totalProdutos = dashboardData.stats.totalProdutos || 0;
+      const totalProdutos = (dashboardData?.stats?.totalProdutos ?? 0);
       const ok = Math.max(0, totalProdutos - vencidos - criticos - atencao);
       
       // Adaptar dados para o formato esperado pelo dashboard mobile

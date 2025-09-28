@@ -262,7 +262,44 @@ export const dashboardService = {
   getDashboardData: async () => {
     try {
       const response = await api.get('/dashboard');
-      return response.data;
+      const payload = response.data;
+
+      // Normaliza diferentes formatos de resposta do backend
+      // Se vier como { success: true, data: stats }, adapta para { stats }
+      if (payload?.data && !payload?.stats) {
+        const stats = payload.data || {
+          totalProdutos: 0,
+          produtosVencendo: 0,
+          produtosVencidos: 0,
+          valorEstoque: 0,
+          usuariosAtivos: 0
+        };
+        return {
+          stats,
+          changes: payload.changes || undefined,
+          recentProducts: payload.recentProducts || undefined,
+          expiringProducts: payload.expiringProducts || undefined,
+        };
+      }
+
+      // Garante que sempre haja um objeto stats, mesmo se o payload estiver em um formato inesperado
+      if (!payload?.stats) {
+        return {
+          stats: {
+            totalProdutos: 0,
+            produtosVencendo: 0,
+            produtosVencidos: 0,
+            valorEstoque: 0,
+            usuariosAtivos: 0
+          },
+          changes: payload?.changes || undefined,
+          recentProducts: payload?.recentProducts || undefined,
+          expiringProducts: payload?.expiringProducts || undefined,
+        };
+      }
+
+      // Caso já esteja no formato esperado
+      return payload;
     } catch (error) {
       throw new Error(error.response?.data?.error || 'Erro ao carregar dados do dashboard');
     }
@@ -656,9 +693,11 @@ export const userService = {
 // Serviços de fornecedores
 export const supplierService = {
   // Listar todos os fornecedores
-  getSuppliers: async () => {
+  getSuppliers: async (empresaId) => {
     try {
-      const response = await api.get('/fornecedores');
+      const response = await api.get('/fornecedores', {
+        params: empresaId ? { empresa_id: empresaId } : {}
+      });
       return response.data.fornecedores;
     } catch (error) {
       throw new Error(error.response?.data?.error || 'Erro ao carregar fornecedores');
@@ -669,7 +708,7 @@ export const supplierService = {
   createSupplier: async (supplierData) => {
     try {
       const response = await api.post('/fornecedores', supplierData);
-      return response.data.fornecedor;
+      return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.error || 'Erro ao criar fornecedor');
     }
@@ -679,7 +718,7 @@ export const supplierService = {
   updateSupplier: async (supplierId, supplierData) => {
     try {
       const response = await api.put(`/fornecedores/${supplierId}`, supplierData);
-      return response.data.fornecedor;
+      return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.error || 'Erro ao atualizar fornecedor');
     }

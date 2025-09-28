@@ -55,7 +55,13 @@ const Dashboard = () => {
       // Buscar dados reais da API
       const data = await dashboardService.getDashboardData();
       
-      setStats(data.stats);
+      setStats(data.stats || {
+        totalProdutos: 0,
+        produtosVencendo: 0,
+        produtosVencidos: 0,
+        valorEstoque: 0,
+        usuariosAtivos: 0
+      });
       setChanges(data.changes || {
         totalProdutos: 0,
         produtosVencendo: 0,
@@ -159,35 +165,35 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         <StatCard
           title="Total de Produtos"
-          value={stats.totalProdutos.toLocaleString()}
+          value={(stats?.totalProdutos ?? 0).toLocaleString()}
           icon={Package}
           color="blue"
           change={changes.totalProdutos}
         />
         <StatCard
           title="Produtos Vencendo"
-          value={stats.produtosVencendo}
+          value={stats?.produtosVencendo ?? 0}
           icon={AlertTriangle}
           color="orange"
           change={changes.produtosVencendo}
         />
         <StatCard
           title="Produtos Vencidos"
-          value={stats.produtosVencidos}
+          value={stats?.produtosVencidos ?? 0}
           icon={Clock}
           color="red"
           change={changes.produtosVencidos}
         />
         <StatCard
           title="Valor do Estoque"
-          value={formatCurrency(stats.valorEstoque)}
+          value={formatCurrency(stats?.valorEstoque ?? 0)}
           icon={DollarSign}
           color="green"
           change={changes.valorEstoque}
         />
         <StatCard
           title="Usuários Ativos"
-          value={stats.usuariosAtivos}
+          value={stats?.usuariosAtivos ?? 0}
           icon={Users}
           color="indigo"
           change={changes.usuariosAtivos}

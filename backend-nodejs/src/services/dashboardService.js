@@ -5,13 +5,11 @@
 
 async function getDashboardSummary(userId) {
   return {
-    totals: {
-      products: 0,
-      salesToday: 0,
-      alertsActive: 0,
-      expiringProductsCount: 0
-    },
-    trendingProducts: [],
+    totalProdutos: 0,
+    produtosVencendo: 0,
+    produtosVencidos: 0,
+    valorEstoque: 0,
+    usuariosAtivos: 0,
     lastUpdate: new Date().toISOString()
   };
 }
