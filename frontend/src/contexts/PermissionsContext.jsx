@@ -118,27 +118,27 @@ export const PermissionsProvider = ({ children }) => {
   const isUsuario = () => cargo === 'usuario';
   const isVisualizador = () => cargo === 'visualizador';
 
-  const canViewUsers = () => hasPermission('view_all_users');
+  const canViewUsers = () => hasPermission('users_view');
   const canEditUsers = () => hasPermission('edit_user');
   const canDeleteUsers = () => hasPermission('delete_user');
   const canCreateUsers = () => hasPermission('create_user');
 
-  const canViewProducts = () => hasPermission('view_products') || hasPermission('view_all_products');
+  const canViewProducts = () => hasPermission('products_view');
   const canEditProducts = () => hasPermission('edit_product');
   const canDeleteProducts = () => hasPermission('delete_product');
   const canCreateProducts = () => hasPermission('create_product');
 
-  const canViewSales = () => hasPermission('view_sales') || hasPermission('view_all_sales');
+  const canViewSales = () => hasPermission('sales_view');
   const canCreateSales = () => hasPermission('create_sale');
   const canEditSales = () => hasPermission('edit_sale');
 
-  const canViewReports = () => hasPermission('view_reports') || hasPermission('view_all_reports');
+  const canViewReports = () => hasPermission('reports_view');
   const canExportData = () => hasPermission('export_data');
 
-  const canViewAlerts = () => hasPermission('view_alerts') || hasPermission('view_all_alerts');
+  const canViewAlerts = () => hasPermission('alerts_view');
   const canCreateAlerts = () => hasPermission('create_alert');
 
-  const canViewDashboard = () => hasPermission('view_dashboard');
+  const canViewDashboard = () => hasPermission('dashboard_view');
 
   const clearPermissions = () => {
     console.log('🗑️ [PermissionsContext] Limpando permissões...');

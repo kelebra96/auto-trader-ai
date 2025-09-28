@@ -79,8 +79,37 @@ class PermissionService {
         });
       }
 
+      // Aplicar aliases para compatibilidade com o frontend
+      const aliasMap = {
+        products_view: ['view_products', 'view_all_products'],
+        products_create: ['create_product'],
+        products_edit: ['edit_product'],
+        products_delete: ['delete_product'],
+        products_export: ['export_data'],
+        reports_export: ['export_data'],
+        settings_import_export: ['export_data'],
+        alerts_view: ['view_alerts', 'view_all_alerts'],
+        alerts_create: ['create_alert'],
+        users_view: ['view_all_users'],
+        users_create: ['create_user'],
+        users_edit: ['edit_user'],
+        users_delete: ['delete_user'],
+        reports_view: ['view_reports', 'view_all_reports'],
+        dashboard_view: ['view_dashboard'],
+        suppliers_view: ['view_suppliers'],
+        companies_view: ['view_companies']
+      };
+
+      const expandedPermissions = new Set(permissions);
+      permissions.forEach((perm) => {
+        const aliases = aliasMap[perm];
+        if (aliases && Array.isArray(aliases)) {
+          aliases.forEach((a) => expandedPermissions.add(a));
+        }
+      });
+
       return {
-        permissions: Array.from(permissions),
+        permissions: Array.from(expandedPermissions),
         profile: user.profile ? user.profile.name : null,
         role: user.papel
       };

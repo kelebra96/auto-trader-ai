@@ -7,7 +7,7 @@ import { useNotifications } from '../../hooks/useNotifications';
 
 const Header = ({ user, onLogout }) => {
   const navigate = useNavigate();
-  const { hasPermission, isRole } = usePermissions();
+  const { hasPermission } = usePermissions();
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationRef = useRef(null);
@@ -49,7 +49,7 @@ const Header = ({ user, onLogout }) => {
 
           {/* Navigation */}
           <nav className="hidden md:flex space-x-8">
-            {hasPermission('view_dashboard') && (
+            {hasPermission('dashboard_view') && (
               <Link
                 to="/dashboard"
                 className="text-gray-500 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
@@ -57,7 +57,7 @@ const Header = ({ user, onLogout }) => {
                 Dashboard
               </Link>
             )}
-            {hasPermission('view_products') && (
+            {hasPermission('products_view') && (
               <Link
                 to="/produtos"
                 className="text-gray-500 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
@@ -65,7 +65,7 @@ const Header = ({ user, onLogout }) => {
                 Produtos
               </Link>
             )}
-            {hasPermission('view_alerts') && (
+            {hasPermission('alerts_view') && (
               <Link
                 to="/alertas"
                 className="text-gray-500 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
@@ -73,7 +73,7 @@ const Header = ({ user, onLogout }) => {
                 Alertas
               </Link>
             )}
-            {hasPermission('view_reports') && (
+            {hasPermission('reports_view') && (
               <Link
                 to="/relatorios"
                 className="text-gray-500 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
@@ -182,7 +182,7 @@ const Header = ({ user, onLogout }) => {
             </div>
 
             {/* Settings */}
-            {isRole('admin') && (
+            {hasPermission('settings_view') && (
               <Link to="/configuracoes">
                 <Button variant="ghost" size="sm">
                   <Settings className="h-5 w-5" />

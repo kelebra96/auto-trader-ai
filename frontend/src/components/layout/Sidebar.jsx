@@ -19,7 +19,7 @@ import { usePermissions } from '../../contexts/PermissionsContext';
 
 const Sidebar = ({ isOpen, onClose }) => {
   const location = useLocation();
-  const { hasPermission, isRole } = usePermissions();
+  const { hasPermission } = usePermissions();
 
   const navigation = [
     {
@@ -27,56 +27,56 @@ const Sidebar = ({ isOpen, onClose }) => {
       href: '/dashboard',
       icon: LayoutDashboard,
       current: location.pathname === '/dashboard',
-      permission: 'view_dashboard'
+      permission: 'dashboard_view'
     },
     {
       name: 'Produtos',
       href: '/produtos',
       icon: Package,
       current: location.pathname.startsWith('/produtos'),
-      permission: 'view_products'
+      permission: 'products_view'
     },
     {
       name: 'Fornecedores',
       href: '/fornecedores',
       icon: Truck,
       current: location.pathname.startsWith('/fornecedores'),
-      permission: 'view_suppliers'
+      permission: 'suppliers_view'
     },
     {
       name: 'Empresas',
       href: '/empresas',
       icon: Building2,
       current: location.pathname.startsWith('/empresas'),
-      permission: 'view_companies'
+      permission: 'companies_view'
     },
     {
       name: 'Alertas',
       href: '/alertas',
       icon: AlertTriangle,
       current: location.pathname.startsWith('/alertas'),
-      permission: 'view_alerts'
+      permission: 'alerts_view'
     },
     {
       name: 'Relatórios',
       href: '/relatorios',
       icon: BarChart3,
       current: location.pathname.startsWith('/relatorios'),
-      permission: 'view_reports'
+      permission: 'reports_view'
     },
     {
       name: 'Usuários',
       href: '/usuarios',
       icon: Users,
       current: location.pathname.startsWith('/usuarios'),
-      permission: 'view_all_users'
+      permission: 'users_view'
     },
     {
       name: 'Mobile',
       href: '/mobile',
       icon: Smartphone,
       current: location.pathname.startsWith('/mobile'),
-      permission: 'view_dashboard' // Mobile usa mesma permissão do dashboard
+      permission: 'dashboard_view' // Mobile usa mesma permissão do dashboard
     }
   ].filter(item => hasPermission(item.permission));
 
@@ -86,34 +86,30 @@ const Sidebar = ({ isOpen, onClose }) => {
       href: '/perfis',
       icon: UserCheck,
       current: location.pathname.startsWith('/perfis'),
-      role: 'admin'
+      permission: 'profiles_view'
     },
     {
       name: 'Permissões',
       href: '/permissoes',
       icon: Shield,
       current: location.pathname.startsWith('/permissoes'),
-      role: 'admin'
+      permission: 'profiles_view'
     },
     {
       name: 'Configurações',
       href: '/configuracoes',
       icon: Settings,
       current: location.pathname.startsWith('/configuracoes'),
-      role: 'admin'
+      permission: 'settings_view'
     },
     {
       name: 'Suporte',
       href: '/suporte',
       icon: HelpCircle,
       current: location.pathname.startsWith('/suporte'),
-      permission: 'view_dashboard' // Todos podem ver suporte
+      permission: 'dashboard_view' // Todos podem ver suporte
     }
-  ].filter(item => {
-    if (item.role) return isRole(item.role);
-    if (item.permission) return hasPermission(item.permission);
-    return true;
-  });
+  ].filter(item => (item.permission ? hasPermission(item.permission) : true));
 
   return (
     <>

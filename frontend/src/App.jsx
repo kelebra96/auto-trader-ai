@@ -131,7 +131,7 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="configuracoes" element={
-                <ProtectedRoute requiredRole="admin">
+                <ProtectedRoute requiredPermission="settings_view">
                   <Settings />
                 </ProtectedRoute>
               } />
@@ -141,23 +141,23 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="perfis" element={
-                <ProtectedRoute requiredRole="admin">
+                <ProtectedRoute requiredPermission="profiles_view">
                   <UserProfiles />
                 </ProtectedRoute>
               } />
               <Route path="permissoes" element={
-                <ProtectedRoute requiredRole="admin">
+                <ProtectedRoute requiredPermission="profiles_view">
                   <PermissionManager />
                 </ProtectedRoute>
               } />
               <Route path="perfil" element={<Profile user={user} />} />
               <Route path="mobile" element={
-                <ProtectedRoute requiredPermission="view_dashboard">
+                <ProtectedRoute requiredPermission="dashboard_view">
                   <MobileDashboard />
                 </ProtectedRoute>
               } />
               <Route path="mobile/scanner" element={
-                <ProtectedRoute requiredPermission="view_products">
+                <ProtectedRoute requiredPermission="products_view">
                   <MobileScanner />
                 </ProtectedRoute>
               } />

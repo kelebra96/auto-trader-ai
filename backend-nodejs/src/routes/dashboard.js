@@ -2,30 +2,27 @@ const express = require('express');
 const router = express.Router();
 const { authenticate, requirePermission } = require('../middleware/auth');
 const { asyncHandler } = require('../middleware/errorHandler');
-const dashboardController = require('../controllers/dashboardController');
+const dashboardService = require('../services/dashboardService');
 
-// Rota principal do dashboard
+// Mantém 'dashboard_view' como permissão principal; aliases tratados no serviço
 router.get('/', authenticate, requirePermission('dashboard_view'), asyncHandler(async (req, res) => {
-  const dashboardData = await dashboardController.getDashboardData(req.user.id);
-  res.json(dashboardData);
+  const stats = await dashboardService.getDashboardSummary(req.user.id);
+  res.json({ success: true, data: stats });
 }));
 
-// Rota para estatísticas específicas
 router.get('/stats', authenticate, requirePermission('dashboard_view'), asyncHandler(async (req, res) => {
-  const stats = await dashboardController.getStats(req.user.id);
-  res.json(stats);
+  const stats = await dashboardService.getDetailedStats(req.user.id);
+  res.json({ success: true, data: stats });
 }));
 
-// Rota para produtos recentes
 router.get('/recent-products', authenticate, requirePermission('dashboard_view'), asyncHandler(async (req, res) => {
-  const recentProducts = await dashboardController.getRecentProducts(req.user.id);
-  res.json(recentProducts);
+  const products = await dashboardService.getRecentProducts(req.user.id);
+  res.json({ success: true, data: products });
 }));
 
-// Rota para produtos vencendo
 router.get('/expiring-products', authenticate, requirePermission('dashboard_view'), asyncHandler(async (req, res) => {
-  const expiringProducts = await dashboardController.getExpiringProducts(req.user.id);
-  res.json(expiringProducts);
+  const expiringProducts = await dashboardService.getExpiringProducts(req.user.id);
+  res.json({ success: true, data: expiringProducts });
 }));
 
 module.exports = router;
