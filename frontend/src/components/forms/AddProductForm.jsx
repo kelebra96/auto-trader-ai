@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "../ui/button";
 import { useNotifications } from "../../contexts/NotificationContext";
-import { productService, supplierService } from "../../services/api";
+import {
+  productService,
+  supplierService,
+  companyService,
+} from "../../services/api";
 
 const AddProductForm = ({
   onClose,
@@ -13,11 +17,14 @@ const AddProductForm = ({
   const { addNotification } = useNotifications();
   const [loading, setLoading] = useState(false);
   const [fornecedores, setFornecedores] = useState([]);
+  const [empresas, setEmpresas] = useState([]);
   const [formData, setFormData] = useState({
     codigo: "",
     nome: "",
     categoria: "",
     fornecedor_id: "",
+    empresa_id: "",
+    preco: "",
   });
 
   // Carregar fornecedores
@@ -37,7 +44,18 @@ const AddProductForm = ({
       }
     };
 
+    const loadEmpresas = async () => {
+      try {
+        const data = await companyService.getCompanies();
+        setEmpresas(data || []);
+      } catch (error) {
+        console.error("Erro ao carregar empresas:", error);
+        // empresas não são críticas aqui, apenas notificamos
+      }
+    };
+
     loadFornecedores();
+    loadEmpresas();
   }, []);
 
   // Preencher formulário com dados iniciais quando estiver editando
@@ -48,6 +66,8 @@ const AddProductForm = ({
         nome: initialData.nome || "",
         categoria: initialData.categoria || "",
         fornecedor_id: initialData.fornecedor_id?.toString() || "",
+        empresa_id: initialData.empresa_id?.toString() || "",
+        preco: initialData.preco != null ? initialData.preco.toString() : "",
       });
     }
   }, [initialData, isEditing]);
@@ -83,7 +103,9 @@ const AddProductForm = ({
         !formData.codigo ||
         !formData.nome ||
         !formData.categoria ||
-        !formData.fornecedor_id
+        !formData.fornecedor_id ||
+        !formData.empresa_id ||
+        !formData.preco
       ) {
         addNotification({
           type: "error",
@@ -99,6 +121,8 @@ const AddProductForm = ({
         nome: formData.nome,
         categoria: formData.categoria,
         fornecedor_id: parseInt(formData.fornecedor_id),
+        empresa_id: parseInt(formData.empresa_id),
+        preco: parseFloat(formData.preco),
       };
 
       if (isEditing) {
@@ -221,6 +245,49 @@ const AddProductForm = ({
               </option>
             ))}
           </select>
+        </div>
+
+        {/* Empresa */}
+        <div>
+          <label
+            htmlFor="empresa_id"
+            className="block text-sm font-medium text-gray-700 mb-1">
+            Empresa *
+          </label>
+          <select
+            id="empresa_id"
+            name="empresa_id"
+            value={formData.empresa_id}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required>
+            <option value="">Selecione a empresa</option>
+            {empresas.map((empresa) => (
+              <option key={empresa.id} value={empresa.id}>
+                {empresa.nome}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Preço */}
+        <div>
+          <label
+            htmlFor="preco"
+            className="block text-sm font-medium text-gray-700 mb-1">
+            Preço (R$) *
+          </label>
+          <input
+            type="number"
+            step="0.01"
+            id="preco"
+            name="preco"
+            value={formData.preco}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Ex: 3.50"
+            required
+          />
         </div>
       </div>
 
