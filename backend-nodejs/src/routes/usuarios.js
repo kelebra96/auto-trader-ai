@@ -32,6 +32,10 @@ router.get('/permissoes', authenticate, async (req, res) => {
   }
 });
 
+// Rotas para perfil do usuário atual
+router.get('/perfil', authenticate, userController.getCurrentUserProfile);
+router.put('/perfil', authenticate, userController.updateCurrentUserProfile);
+
 // Rotas CRUD para usuários
 router.get('/', authenticate, requirePermission('users_view'), userController.getUsers);
 router.get('/:id', authenticate, requirePermission('users_view'), userController.getUser);

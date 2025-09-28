@@ -5,6 +5,16 @@ module.exports = (sequelize, DataTypes) => {
       primaryKey: true,
       autoIncrement: true
     },
+    codigo: {
+      type: DataTypes.STRING(20),
+      allowNull: true, // Permitir null inicialmente para ser gerado no hook
+      unique: true,
+      validate: {
+        notEmpty: {
+          msg: 'Código do fornecedor não pode estar vazio'
+        }
+      }
+    },
     nome: {
       type: DataTypes.STRING(100),
       allowNull: false,
@@ -23,8 +33,8 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: true,
       validate: {
         is: {
-          args: /^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$/,
-          msg: 'CNPJ deve ter o formato XX.XXX.XXX/XXXX-XX'
+          args: /^\d{14}$/,
+          msg: 'CNPJ deve conter exatamente 14 dígitos'
         }
       }
     },
@@ -141,6 +151,11 @@ module.exports = (sequelize, DataTypes) => {
         if (fornecedor.contato) {
           fornecedor.contato = fornecedor.contato.trim();
         }
+      },
+      afterCreate: async (fornecedor) => {
+        // Gerar código automaticamente baseado no ID
+        const codigo = `FOR${String(fornecedor.id).padStart(6, '0')}`;
+        await fornecedor.update({ codigo }, { hooks: false });
       }
     }
   });

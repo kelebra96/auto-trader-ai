@@ -393,6 +393,84 @@ const manageUserPermission = asyncHandler(async (req, res) => {
   });
 });
 
+// Obter perfil do usuário atual
+const getCurrentUserProfile = asyncHandler(async (req, res) => {
+  const user = await User.findByPk(req.user.id, {
+    include: [
+      {
+        model: UserProfile,
+        as: 'profile',
+        attributes: ['id', 'name', 'description']
+      }
+    ],
+    attributes: { exclude: ['senha'] }
+  });
+
+  if (!user) {
+    throw new AppError('Usuário não encontrado', 404);
+  }
+
+  res.json({
+    success: true,
+    data: user
+  });
+});
+
+// Atualizar perfil do usuário atual
+const updateCurrentUserProfile = asyncHandler(async (req, res) => {
+  const { nome_completo, email, empresa, telefone, bio, foto_perfil } = req.body;
+
+  const user = await User.findByPk(req.user.id);
+  if (!user) {
+    throw new AppError('Usuário não encontrado', 404);
+  }
+
+  // Verificar se email já existe em outro usuário
+  if (email && email !== user.email) {
+    const existingUser = await User.findOne({ 
+      where: { 
+        email, 
+        id: { [Op.ne]: user.id } 
+      } 
+    });
+    if (existingUser) {
+      throw new AppError('Email já está em uso', 400);
+    }
+  }
+
+  // Atualizar dados do usuário
+  await user.update({
+    nome_completo: nome_completo || user.nome_completo,
+    email: email || user.email,
+    empresa: empresa || user.empresa,
+    telefone: telefone || user.telefone,
+    bio: bio || user.bio,
+    foto_perfil: foto_perfil || user.foto_perfil
+  });
+
+  logger.info('Perfil do usuário atualizado', {
+    userId: user.id,
+    email: user.email
+  });
+
+  // Retornar usuário atualizado
+  const updatedUser = await User.findByPk(user.id, {
+    include: [
+      {
+        model: UserProfile,
+        as: 'profile',
+        attributes: ['id', 'name', 'description']
+      }
+    ],
+    attributes: { exclude: ['senha'] }
+  });
+
+  res.json({
+    success: true,
+    data: updatedUser
+  });
+});
+
 module.exports = {
   getUsers,
   getUser,
@@ -402,5 +480,7 @@ module.exports = {
   changePassword,
   getUserPermissions,
   assignProfile,
-  manageUserPermission
+  manageUserPermission,
+  getCurrentUserProfile,
+  updateCurrentUserProfile
 };

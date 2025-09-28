@@ -2,14 +2,10 @@ const { DataTypes } = require('sequelize');
 
 module.exports = (sequelize) => {
   const UserPermission = sequelize.define('UserPermission', {
-    id: {
-      type: DataTypes.INTEGER,
-      primaryKey: true,
-      autoIncrement: true
-    },
     user_id: {
       type: DataTypes.INTEGER,
       allowNull: false,
+      primaryKey: true,
       references: {
         model: 'Users',
         key: 'id'
@@ -18,6 +14,7 @@ module.exports = (sequelize) => {
     permission_id: {
       type: DataTypes.INTEGER,
       allowNull: false,
+      primaryKey: true,
       references: {
         model: 'Permissions',
         key: 'id'
