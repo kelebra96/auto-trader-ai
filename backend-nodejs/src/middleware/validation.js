@@ -352,6 +352,9 @@ const schemas = {
   // Schemas de produto
   createProduct: productSchemas.create,
   updateProduct: productSchemas.update,
+  // Aliases em português (compatibilidade com rotas existentes)
+  createProduto: productSchemas.create,
+  updateProduto: productSchemas.update,
 
   // Schemas de empresa
   createEmpresa: empresaSchemas.create,
