@@ -1,14 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const { Fornecedor, Empresa } = require('../models');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, requirePermission } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validation');
 const { asyncHandler } = require('../middleware/errorHandler');
 const logger = require('../utils/logger');
 const { Op } = require('sequelize');
 
 // Listar fornecedores
-router.get('/', authenticate, asyncHandler(async (req, res) => {
+router.get('/', authenticate, requirePermission('suppliers_view'), asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, search, empresa_id } = req.query;
   const offset = (page - 1) * limit;
 

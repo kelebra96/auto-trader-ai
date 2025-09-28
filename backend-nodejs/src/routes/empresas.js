@@ -1,13 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const { Empresa, User } = require('../models');
-const { authenticate, authorize } = require('../middleware/auth');
+const { authenticate, authorize, requirePermission } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validation');
 const { asyncHandler } = require('../middleware/errorHandler');
 const logger = require('../utils/logger');
+const { Op } = require('sequelize');
 
 // Listar empresas do usuário
-router.get('/', authenticate, asyncHandler(async (req, res) => {
+router.get('/', authenticate, requirePermission('companies_view'), asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, search } = req.query;
   const offset = (page - 1) * limit;
 

@@ -49,28 +49,24 @@ class PermissionService {
         });
       }
 
-      // Buscar permissões específicas do usuário separadamente
-      const userSpecificPermissions = await User.findByPk(userId, {
+      // Buscar permissões específicas do usuário através da tabela UserPermission
+      const userSpecificPermissions = await UserPermission.findAll({
+        where: { user_id: userId },
         include: [
           {
             model: Permission,
-            as: 'permissions',
-            through: { 
-              attributes: ['granted']
-            }
+            as: 'permission',
+            where: { active: true }
           }
         ]
       });
 
       // Processar permissões específicas do usuário (podem sobrescrever as do perfil)
-      if (userSpecificPermissions && userSpecificPermissions.permissions) {
-        userSpecificPermissions.permissions.forEach(permission => {
-          // O Sequelize usa o nome da tabela intermediária como alias
-          const userPermission = permission.UserPermissions;
-          if (userPermission) {
-            // Acessar o valor granted através dos dataValues ou get()
-            const granted = userPermission.dataValues ? userPermission.dataValues.granted : userPermission.get('granted');
-            if (granted) {
+      if (userSpecificPermissions && userSpecificPermissions.length > 0) {
+        userSpecificPermissions.forEach(userPermission => {
+          const permission = userPermission.permission;
+          if (permission) {
+            if (userPermission.granted) {
               permissions.add(permission.name);
             } else {
               permissions.delete(permission.name); // Remove se foi negada especificamente

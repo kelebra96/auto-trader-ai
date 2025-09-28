@@ -1,14 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const { Produto, Empresa, Fornecedor } = require('../models');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, requirePermission } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validation');
 const { asyncHandler } = require('../middleware/errorHandler');
 const logger = require('../utils/logger');
 const { Op } = require('sequelize');
 
 // Listar produtos
-router.get('/', authenticate, asyncHandler(async (req, res) => {
+router.get('/', authenticate, requirePermission('products_view'), asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, search, empresa_id, categoria, estoque_baixo } = req.query;
   const offset = (page - 1) * limit;
 
@@ -68,7 +68,7 @@ router.get('/', authenticate, asyncHandler(async (req, res) => {
 }));
 
 // Obter produto por ID
-router.get('/:id', authenticate, validate(schemas.idParam), asyncHandler(async (req, res) => {
+router.get('/:id', authenticate, requirePermission('products_view'), validate(schemas.idParam), asyncHandler(async (req, res) => {
   const produto = await Produto.findOne({
     where: { id: req.params.id },
     include: [
@@ -94,7 +94,7 @@ router.get('/:id', authenticate, validate(schemas.idParam), asyncHandler(async (
 }));
 
 // Criar novo produto
-router.post('/', authenticate, validate(schemas.createProduto), asyncHandler(async (req, res) => {
+router.post('/', authenticate, requirePermission('products_create'), validate(schemas.createProduto), asyncHandler(async (req, res) => {
   // Verificar se a empresa pertence ao usuário
   const empresa = await Empresa.findOne({
     where: { 
@@ -149,7 +149,7 @@ router.post('/', authenticate, validate(schemas.createProduto), asyncHandler(asy
 }));
 
 // Atualizar produto
-router.put('/:id', authenticate, validate(schemas.idParam), validate(schemas.updateProduto), asyncHandler(async (req, res) => {
+router.put('/:id', authenticate, requirePermission('products_edit'), validate(schemas.idParam), validate(schemas.updateProduto), asyncHandler(async (req, res) => {
   const produto = await Produto.findOne({
     where: { id: req.params.id },
     include: [{
@@ -203,7 +203,7 @@ router.put('/:id', authenticate, validate(schemas.idParam), validate(schemas.upd
 }));
 
 // Deletar produto
-router.delete('/:id', authenticate, validate(schemas.idParam), asyncHandler(async (req, res) => {
+router.delete('/:id', authenticate, requirePermission('products_delete'), validate(schemas.idParam), asyncHandler(async (req, res) => {
   const produto = await Produto.findOne({
     where: { id: req.params.id },
     include: [{
@@ -228,7 +228,7 @@ router.delete('/:id', authenticate, validate(schemas.idParam), asyncHandler(asyn
 }));
 
 // Ativar/Desativar produto
-router.patch('/:id/toggle-status', authenticate, validate(schemas.idParam), asyncHandler(async (req, res) => {
+router.patch('/:id/toggle-status', authenticate, requirePermission('products_edit'), validate(schemas.idParam), asyncHandler(async (req, res) => {
   const produto = await Produto.findOne({
     where: { id: req.params.id },
     include: [{
@@ -254,7 +254,7 @@ router.patch('/:id/toggle-status', authenticate, validate(schemas.idParam), asyn
 }));
 
 // Atualizar estoque
-router.patch('/:id/estoque', authenticate, validate(schemas.idParam), asyncHandler(async (req, res) => {
+router.patch('/:id/estoque', authenticate, requirePermission('products_edit'), validate(schemas.idParam), asyncHandler(async (req, res) => {
   const { quantidade, operacao } = req.body;
 
   if (!quantidade || !operacao || !['adicionar', 'remover', 'definir'].includes(operacao)) {
@@ -312,7 +312,7 @@ router.patch('/:id/estoque', authenticate, validate(schemas.idParam), asyncHandl
 }));
 
 // Listar produtos com estoque baixo
-router.get('/estoque-baixo', authenticate, asyncHandler(async (req, res) => {
+router.get('/estoque-baixo', authenticate, requirePermission('products_view'), asyncHandler(async (req, res) => {
   const { empresa_id } = req.query;
 
   const whereClause = {
