@@ -116,9 +116,19 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/profiles', profileRoutes);
 app.use('/api/permissions', permissionRoutes);
 app.use('/api/dashboard', dashboardRoutes);
-
-// Rota para servir arquivos estáticos (se necessário)
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+ 
+ // Rota de teste simples (compatibilidade)
+ app.get('/api/test', (req, res) => {
+   res.json({
+     message: 'API funcionando!',
+     timestamp: new Date().toISOString(),
+     version: '2.0.0',
+     environment: process.env.NODE_ENV || 'development'
+   });
+ });
+ 
+ // Rota para servir arquivos estáticos (se necessário)
+ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Rota 404
 app.use('*', (req, res) => {
