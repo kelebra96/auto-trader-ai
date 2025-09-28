@@ -1,7 +1,51 @@
+jest.mock('../models', () => {
+  const createModelMock = () => ({
+    findOne: jest.fn(),
+    findByPk: jest.fn(),
+    findAll: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    destroy: jest.fn(),
+    associate: jest.fn()
+  });
+
+  const models = {
+    sequelize: {
+      authenticate: jest.fn().mockResolvedValue(),
+      close: jest.fn().mockResolvedValue()
+    },
+    Sequelize: {}
+  };
+
+  [
+    'User',
+    'Empresa',
+    'Fornecedor',
+    'Produto',
+    'EntradaProduto',
+    'Alerta',
+    'ConfiguracaoAlerta',
+    'Venda',
+    'ConfiguracaoUsuario',
+    'Permission',
+    'UserProfile',
+    'ProfilePermission',
+    'UserPermission'
+  ].forEach(modelName => {
+    models[modelName] = createModelMock();
+  });
+
+  return models;
+});
+
 const request = require('supertest');
 const { app } = require('../app');
 
 describe('Auto Trader AI Backend', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   describe('Health Check', () => {
     it('should return 200 and health status', async () => {
       const response = await request(app)
