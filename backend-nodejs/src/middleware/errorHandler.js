@@ -7,7 +7,7 @@ class AppError extends Error {
     this.statusCode = statusCode;
     this.isOperational = isOperational;
     this.name = this.constructor.name;
-    
+
     Error.captureStackTrace(this, this.constructor);
   }
 }
@@ -104,7 +104,12 @@ const errorHandler = (err, req, res, next) => {
 
 // Middleware para capturar erros assíncronos
 const asyncHandler = (fn) => (req, res, next) => {
-  Promise.resolve(fn(req, res, next)).catch(next);
+  try {
+    const result = fn(req, res, next);
+    return Promise.resolve(result).catch(next);
+  } catch (error) {
+    return next(error);
+  }
 };
 
 module.exports = {
