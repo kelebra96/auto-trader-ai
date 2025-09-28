@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "../ui/button";
 import { useNotifications } from "../../contexts/NotificationContext";
-import { productService } from "../../services/api";
+import { productService, supplierService } from "../../services/api";
 
 const AddProductForm = ({
   onClose,
@@ -25,7 +25,6 @@ const AddProductForm = ({
     const loadFornecedores = async () => {
       try {
         // Usar supplierService para garantir baseURL e token (axios interceptors)
-        const { supplierService } = require("../../services/api");
         const data = await supplierService.getSuppliers();
         setFornecedores(data || []);
       } catch (error) {
