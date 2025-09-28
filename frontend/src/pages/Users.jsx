@@ -62,8 +62,9 @@ const Users = () => {
   const carregarUsuarios = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/users');
-      setUsuarios(response.data.data || []);
+      // Ajuste para usar o serviço correto e o formato de resposta do backend
+      const data = await userService.getUsuarios();
+      setUsuarios(data?.data?.users || []);
     } catch (error) {
       showError('Erro ao carregar usuários: ' + error.message);
     } finally {
@@ -82,7 +83,7 @@ const Users = () => {
 
   const carregarPermissoesUsuario = async (userId) => {
     try {
-      const response = await api.get(`/users/${userId}/permissions`);
+      const response = await api.get(`/usuarios/${userId}/permissions`);
       setUserPermissions(response.data.data || []);
     } catch (error) {
       console.error('Erro ao carregar permissões do usuário:', error);
@@ -136,7 +137,7 @@ const Users = () => {
       }
 
       if (modalMode === 'edit') {
-        await api.put(`/users/${selectedUser.id}`, userForm);
+        await api.put(`/usuarios/${selectedUser.id}`, userForm);
         showSuccess('Usuário atualizado com sucesso!');
       } else if (modalMode === 'create') {
         // Validações adicionais para criação
@@ -149,7 +150,16 @@ const Users = () => {
           return;
         }
 
-        await api.post('/users', userForm);
+        // Mapear campos para o backend
+        const payload = {
+          email: userForm.email,
+          senha: userForm.password,
+          nome_estabelecimento: userForm.nome_estabelecimento,
+          papel: userForm.papel || 'usuario',
+          profile_id: userForm.profile_id || null
+        };
+
+        await api.post('/usuarios', payload);
         showSuccess('Usuário criado com sucesso!');
       }
       
@@ -163,7 +173,7 @@ const Users = () => {
   const handleDeleteUser = async (usuarioId) => {
     if (window.confirm('Tem certeza que deseja desativar este usuário?')) {
       try {
-        await api.delete(`/users/${usuarioId}`);
+        await api.delete(`/usuarios/${usuarioId}`);
         showSuccess('Usuário desativado com sucesso!');
         carregarUsuarios();
       } catch (error) {
@@ -199,9 +209,8 @@ const Users = () => {
         return;
       }
 
-      await api.put(`/users/${selectedUser.id}/password`, {
-        currentPassword: passwordForm.senha_atual,
-        newPassword: passwordForm.nova_senha
+      await api.put(`/usuarios/${selectedUser.id}/password`, {
+        senha: passwordForm.nova_senha
       });
 
       showSuccess('Senha alterada com sucesso!');
