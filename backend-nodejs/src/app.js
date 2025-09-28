@@ -23,6 +23,7 @@ const configuracaoRoutes = require('./routes/configuracoes');
 const aiRoutes = require('./routes/ai');
 const profileRoutes = require('./routes/profiles');
 const permissionRoutes = require('./routes/permissions');
+const dashboardRoutes = require('./routes/dashboard');
 
 // Importar modelos para sincronização
 const db = require('./models');
@@ -32,8 +33,10 @@ const app = express();
 // Configuração de CORS
 const corsOptions = {
   origin: function (origin, callback) {
-    // Permitir requisições sem origin (mobile apps, Postman, etc.)
-    if (!origin) return callback(null, true);
+    // Durante o desenvolvimento, permitir todas as origens
+    if (process.env.NODE_ENV === 'development' || !origin) {
+      return callback(null, true);
+    }
     
     const allowedOrigins = [
       'http://localhost:3000',
@@ -47,6 +50,7 @@ const corsOptions = {
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
+      console.log('CORS: Origem não permitida:', origin);
       callback(new Error('Não permitido pelo CORS'));
     }
   },
@@ -95,6 +99,8 @@ app.get('/health', (req, res) => {
 // Rotas
 app.use('/api/auth', authRoutes);
 app.use('/api/usuarios', usuarioRoutes);
+// Rota de compatibilidade para frontend que usa /api/users
+app.use('/api/users', usuarioRoutes);
 app.use('/api/empresas', empresaRoutes);
 app.use('/api/fornecedores', fornecedorRoutes);
 app.use('/api/produtos', produtoRoutes);
@@ -105,6 +111,7 @@ app.use('/api/configuracoes', configuracaoRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/profiles', profileRoutes);
 app.use('/api/permissions', permissionRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // Rota para servir arquivos estáticos (se necessário)
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));

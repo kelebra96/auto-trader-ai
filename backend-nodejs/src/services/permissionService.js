@@ -7,6 +7,7 @@ class PermissionService {
    */
   async getUserPermissions(userId) {
     try {
+      // Buscar usuário com perfil e permissões do perfil
       const user = await User.findByPk(userId, {
         include: [
           {
@@ -19,13 +20,6 @@ class PermissionService {
                 through: { attributes: [] }
               }
             ]
-          },
-          {
-            model: Permission,
-            as: 'permissions',
-            through: { 
-              attributes: ['granted']
-            }
           }
         ]
       });
@@ -55,13 +49,32 @@ class PermissionService {
         });
       }
 
+      // Buscar permissões específicas do usuário separadamente
+      const userSpecificPermissions = await User.findByPk(userId, {
+        include: [
+          {
+            model: Permission,
+            as: 'permissions',
+            through: { 
+              attributes: ['granted']
+            }
+          }
+        ]
+      });
+
       // Processar permissões específicas do usuário (podem sobrescrever as do perfil)
-      if (user.permissions) {
-        user.permissions.forEach(permission => {
-          if (permission.UserPermission.granted) {
-            permissions.add(permission.name);
-          } else {
-            permissions.delete(permission.name); // Remove se foi negada especificamente
+      if (userSpecificPermissions && userSpecificPermissions.permissions) {
+        userSpecificPermissions.permissions.forEach(permission => {
+          // O Sequelize usa o nome da tabela intermediária como alias
+          const userPermission = permission.UserPermissions;
+          if (userPermission) {
+            // Acessar o valor granted através dos dataValues ou get()
+            const granted = userPermission.dataValues ? userPermission.dataValues.granted : userPermission.get('granted');
+            if (granted) {
+              permissions.add(permission.name);
+            } else {
+              permissions.delete(permission.name); // Remove se foi negada especificamente
+            }
           }
         });
       }
