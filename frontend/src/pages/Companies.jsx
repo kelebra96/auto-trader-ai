@@ -1,16 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit, Trash2, X, Building } from 'lucide-react';
-import { Button } from '../components/ui/button';
-import Dialog from '../components/ui/Dialog';
-import { useNotifications } from '../contexts/NotificationContext';
-import { companyService } from '../services/api';
+import React, { useState, useEffect } from "react";
+import { Search, Plus, Edit, Trash2, X, Building } from "lucide-react";
+import { Button } from "../components/ui/button";
+import Dialog from "../components/ui/Dialog";
+import { useNotifications } from "../contexts/NotificationContext";
+import { companyService } from "../services/api";
 
 const Companies = () => {
   const { addNotification } = useNotifications();
-  
+
   const [companies, setCompanies] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  
+  const [searchTerm, setSearchTerm] = useState("");
+
   // Estados para modais
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -21,11 +21,11 @@ const Companies = () => {
 
   // Estados para formulário
   const [formData, setFormData] = useState({
-    nome: '',
-    cnpj: '',
-    email: '',
-    telefone: '',
-    endereco: ''
+    nome: "",
+    cnpj: "",
+    email: "",
+    telefone: "",
+    endereco: "",
   });
 
   // Função para carregar empresas da API
@@ -36,9 +36,9 @@ const Companies = () => {
       setCompanies(data);
     } catch (error) {
       addNotification({
-        type: 'error',
-        title: 'Erro',
-        message: error.message
+        type: "error",
+        title: "Erro",
+        message: error.message,
       });
     } finally {
       setLoading(false);
@@ -50,20 +50,21 @@ const Companies = () => {
   }, []);
 
   // Filtrar empresas baseado na busca
-  const filteredCompanies = companies.filter(company =>
-    company.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    company.cnpj.includes(searchTerm) ||
-    company.email.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredCompanies = companies.filter(
+    (company) =>
+      company.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      company.cnpj.includes(searchTerm) ||
+      company.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Resetar formulário
   const resetForm = () => {
     setFormData({
-      nome: '',
-      cnpj: '',
-      email: '',
-      telefone: '',
-      endereco: ''
+      nome: "",
+      cnpj: "",
+      email: "",
+      telefone: "",
+      endereco: "",
     });
   };
 
@@ -77,11 +78,11 @@ const Companies = () => {
   const handleEditCompany = (company) => {
     setEditingCompany(company);
     setFormData({
-      nome: company.nome || '',
-      cnpj: company.cnpj || '',
-      email: company.email || '',
-      telefone: company.telefone || '',
-      endereco: company.endereco || ''
+      nome: company.nome || "",
+      cnpj: company.cnpj || "",
+      email: company.email || "",
+      telefone: company.telefone || "",
+      endereco: company.endereco || "",
     });
     setShowEditModal(true);
   };
@@ -95,45 +96,53 @@ const Companies = () => {
   // Submeter formulário
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Validação básica
     if (!formData.nome || !formData.cnpj) {
       addNotification({
-        type: 'error',
-        title: 'Erro',
-        message: 'Nome e CNPJ são obrigatórios'
+        type: "error",
+        title: "Erro",
+        message: "Nome e CNPJ são obrigatórios",
       });
       return;
     }
 
     try {
+      // Normalizar CNPJ: enviar apenas dígitos
+      const cnpjDigits = String(formData.cnpj || "").replace(/\D/g, "");
+
+      const payload = {
+        ...formData,
+        cnpj: cnpjDigits,
+      };
+
       if (editingCompany) {
         // Atualizar empresa
-        await companyService.updateCompany(editingCompany.id, formData);
+        await companyService.updateCompany(editingCompany.id, payload);
         addNotification({
-          type: 'success',
-          title: 'Sucesso',
-          message: 'Empresa atualizada com sucesso!'
+          type: "success",
+          title: "Sucesso",
+          message: "Empresa atualizada com sucesso!",
         });
         setShowEditModal(false);
       } else {
         // Criar nova empresa
-        await companyService.createCompany(formData);
+        await companyService.createCompany(payload);
         addNotification({
-          type: 'success',
-          title: 'Sucesso',
-          message: 'Empresa criada com sucesso!'
+          type: "success",
+          title: "Sucesso",
+          message: "Empresa criada com sucesso!",
         });
         setShowAddModal(false);
       }
-      
+
       loadCompanies();
       resetForm();
     } catch (error) {
       addNotification({
-        type: 'error',
-        title: 'Erro',
-        message: error.message
+        type: "error",
+        title: "Erro",
+        message: error.message,
       });
     }
   };
@@ -143,17 +152,17 @@ const Companies = () => {
     try {
       await companyService.deleteCompany(deletingCompany.id);
       addNotification({
-        type: 'success',
-        title: 'Sucesso',
-        message: 'Empresa excluída com sucesso!'
+        type: "success",
+        title: "Sucesso",
+        message: "Empresa excluída com sucesso!",
       });
       setShowDeleteModal(false);
       loadCompanies();
     } catch (error) {
       addNotification({
-        type: 'error',
-        title: 'Erro',
-        message: error.message
+        type: "error",
+        title: "Erro",
+        message: error.message,
       });
     }
   };
@@ -176,7 +185,9 @@ const Companies = () => {
           <h1 className="text-2xl font-bold text-gray-900">Empresas</h1>
           <p className="text-gray-600">Gerencie as empresas do sistema</p>
         </div>
-        <Button onClick={handleAddCompany} className="bg-blue-600 hover:bg-blue-700">
+        <Button
+          onClick={handleAddCompany}
+          className="bg-blue-600 hover:bg-blue-700">
           <Plus className="w-4 h-4 mr-2" />
           Nova Empresa
         </Button>
@@ -236,7 +247,9 @@ const Companies = () => {
               filteredCompanies.map((company) => (
                 <tr key={company.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{company.nome}</div>
+                    <div className="text-sm font-medium text-gray-900">
+                      {company.nome}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">{company.cnpj}</div>
@@ -245,7 +258,9 @@ const Companies = () => {
                     <div className="text-sm text-gray-900">{company.email}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{company.telefone}</div>
+                    <div className="text-sm text-gray-900">
+                      {company.telefone}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-2">
@@ -253,16 +268,14 @@ const Companies = () => {
                         variant="outline"
                         size="sm"
                         onClick={() => handleEditCompany(company)}
-                        className="text-blue-600 hover:text-blue-900"
-                      >
+                        className="text-blue-600 hover:text-blue-900">
                         <Edit className="w-4 h-4" />
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => handleDeleteCompany(company)}
-                        className="text-red-600 hover:text-red-900"
-                      >
+                        className="text-red-600 hover:text-red-900">
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
@@ -275,11 +288,10 @@ const Companies = () => {
       </div>
 
       {/* Modal de Adicionar/Editar Empresa */}
-      <Dialog 
-        isOpen={showAddModal || showEditModal} 
+      <Dialog
+        isOpen={showAddModal || showEditModal}
         onClose={closeModals}
-        title={editingCompany ? 'Editar Empresa' : 'Nova Empresa'}
-      >
+        title={editingCompany ? "Editar Empresa" : "Nova Empresa"}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -288,7 +300,9 @@ const Companies = () => {
             <input
               type="text"
               value={formData.nome}
-              onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, nome: e.target.value })
+              }
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
@@ -301,7 +315,9 @@ const Companies = () => {
             <input
               type="text"
               value={formData.cnpj}
-              onChange={(e) => setFormData({ ...formData, cnpj: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, cnpj: e.target.value })
+              }
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
@@ -314,7 +330,9 @@ const Companies = () => {
             <input
               type="email"
               value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, email: e.target.value })
+              }
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -326,7 +344,9 @@ const Companies = () => {
             <input
               type="text"
               value={formData.telefone}
-              onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, telefone: e.target.value })
+              }
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -337,7 +357,9 @@ const Companies = () => {
             </label>
             <textarea
               value={formData.endereco}
-              onChange={(e) => setFormData({ ...formData, endereco: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, endereco: e.target.value })
+              }
               rows={3}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
@@ -348,35 +370,34 @@ const Companies = () => {
               Cancelar
             </Button>
             <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
-              {editingCompany ? 'Atualizar' : 'Criar'}
+              {editingCompany ? "Atualizar" : "Criar"}
             </Button>
           </div>
         </form>
       </Dialog>
 
       {/* Modal de Confirmação de Exclusão */}
-      <Dialog 
-        isOpen={showDeleteModal} 
+      <Dialog
+        isOpen={showDeleteModal}
         onClose={closeModals}
-        title="Confirmar Exclusão"
-      >
+        title="Confirmar Exclusão">
         <div className="space-y-4">
           <p className="text-gray-600">
-            Tem certeza que deseja excluir a empresa <strong>{deletingCompany?.nome}</strong>?
+            Tem certeza que deseja excluir a empresa{" "}
+            <strong>{deletingCompany?.nome}</strong>?
           </p>
           <p className="text-sm text-red-600">
             Esta ação não pode ser desfeita.
           </p>
-          
+
           <div className="flex justify-end space-x-3 pt-4">
             <Button type="button" variant="outline" onClick={closeModals}>
               Cancelar
             </Button>
-            <Button 
-              type="button" 
+            <Button
+              type="button"
               onClick={confirmDelete}
-              className="bg-red-600 hover:bg-red-700"
-            >
+              className="bg-red-600 hover:bg-red-700">
               Excluir
             </Button>
           </div>

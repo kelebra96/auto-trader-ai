@@ -1,40 +1,43 @@
-import React, { useState, useEffect } from 'react';
-import { Button } from '../ui/button';
-import { useNotifications } from '../../contexts/NotificationContext';
-import { productService } from '../../services/api';
+import React, { useState, useEffect } from "react";
+import { Button } from "../ui/button";
+import { useNotifications } from "../../contexts/NotificationContext";
+import { productService } from "../../services/api";
 
-const AddProductForm = ({ onClose, onSuccess, onCancel, initialData, isEditing = false }) => {
+const AddProductForm = ({
+  onClose,
+  onSuccess,
+  onCancel,
+  initialData,
+  isEditing = false,
+}) => {
   const { addNotification } = useNotifications();
   const [loading, setLoading] = useState(false);
   const [fornecedores, setFornecedores] = useState([]);
   const [formData, setFormData] = useState({
-    codigo: '',
-    nome: '',
-    categoria: '',
-    fornecedor_id: ''
+    codigo: "",
+    nome: "",
+    categoria: "",
+    fornecedor_id: "",
   });
 
   // Carregar fornecedores
   useEffect(() => {
     const loadFornecedores = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/fornecedores', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        });
-        const data = await response.json();
-        setFornecedores(data.fornecedores || []);
+        // Usar supplierService para garantir baseURL e token (axios interceptors)
+        const { supplierService } = require("../../services/api");
+        const data = await supplierService.getSuppliers();
+        setFornecedores(data || []);
       } catch (error) {
-        console.error('Erro ao carregar fornecedores:', error);
+        console.error("Erro ao carregar fornecedores:", error);
         addNotification({
-          type: 'error',
-          title: 'Erro',
-          message: 'Erro ao carregar fornecedores'
+          type: "error",
+          title: "Erro",
+          message: error.message || "Erro ao carregar fornecedores",
         });
       }
     };
-    
+
     loadFornecedores();
   }, []);
 
@@ -42,32 +45,32 @@ const AddProductForm = ({ onClose, onSuccess, onCancel, initialData, isEditing =
   useEffect(() => {
     if (initialData && isEditing) {
       setFormData({
-        codigo: initialData.codigo || '',
-        nome: initialData.nome || '',
-        categoria: initialData.categoria || '',
-        fornecedor_id: initialData.fornecedor_id?.toString() || ''
+        codigo: initialData.codigo || "",
+        nome: initialData.nome || "",
+        categoria: initialData.categoria || "",
+        fornecedor_id: initialData.fornecedor_id?.toString() || "",
       });
     }
   }, [initialData, isEditing]);
 
   const categorias = [
-    'Laticínios',
-    'Padaria',
-    'Frios',
-    'Bebidas',
-    'Carnes',
-    'Frutas e Verduras',
-    'Congelados',
-    'Higiene',
-    'Limpeza',
-    'Outros'
+    "Laticínios",
+    "Padaria",
+    "Frios",
+    "Bebidas",
+    "Carnes",
+    "Frutas e Verduras",
+    "Congelados",
+    "Higiene",
+    "Limpeza",
+    "Outros",
   ];
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
@@ -77,11 +80,16 @@ const AddProductForm = ({ onClose, onSuccess, onCancel, initialData, isEditing =
 
     try {
       // Validação básica
-      if (!formData.codigo || !formData.nome || !formData.categoria || !formData.fornecedor_id) {
+      if (
+        !formData.codigo ||
+        !formData.nome ||
+        !formData.categoria ||
+        !formData.fornecedor_id
+      ) {
         addNotification({
-          type: 'error',
-          title: 'Erro de Validação',
-          message: 'Por favor, preencha todos os campos obrigatórios.'
+          type: "error",
+          title: "Erro de Validação",
+          message: "Por favor, preencha todos os campos obrigatórios.",
         });
         setLoading(false);
         return;
@@ -91,7 +99,7 @@ const AddProductForm = ({ onClose, onSuccess, onCancel, initialData, isEditing =
         codigo: formData.codigo,
         nome: formData.nome,
         categoria: formData.categoria,
-        fornecedor_id: parseInt(formData.fornecedor_id)
+        fornecedor_id: parseInt(formData.fornecedor_id),
       };
 
       if (isEditing) {
@@ -101,19 +109,28 @@ const AddProductForm = ({ onClose, onSuccess, onCancel, initialData, isEditing =
       }
 
       addNotification({
-        type: 'success',
-        title: isEditing ? 'Produto Atualizado' : 'Produto Adicionado',
-        message: `${formData.nome} foi ${isEditing ? 'atualizado' : 'adicionado'} com sucesso!`
+        type: "success",
+        title: isEditing ? "Produto Atualizado" : "Produto Adicionado",
+        message: `${formData.nome} foi ${
+          isEditing ? "atualizado" : "adicionado"
+        } com sucesso!`,
       });
 
       onSuccess && onSuccess(productData);
       (onClose || onCancel)();
     } catch (error) {
-      console.error(`Erro ao ${isEditing ? 'editar' : 'adicionar'} produto:`, error);
+      console.error(
+        `Erro ao ${isEditing ? "editar" : "adicionar"} produto:`,
+        error
+      );
       addNotification({
-        type: 'error',
-        title: 'Erro',
-        message: error.message || `Erro ao ${isEditing ? 'editar' : 'adicionar'} produto. Tente novamente.`
+        type: "error",
+        title: "Erro",
+        message:
+          error.message ||
+          `Erro ao ${
+            isEditing ? "editar" : "adicionar"
+          } produto. Tente novamente.`,
       });
     } finally {
       setLoading(false);
@@ -125,7 +142,9 @@ const AddProductForm = ({ onClose, onSuccess, onCancel, initialData, isEditing =
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Código do Produto */}
         <div>
-          <label htmlFor="codigo" className="block text-sm font-medium text-gray-700 mb-1">
+          <label
+            htmlFor="codigo"
+            className="block text-sm font-medium text-gray-700 mb-1">
             Código do Produto *
           </label>
           <input
@@ -142,7 +161,9 @@ const AddProductForm = ({ onClose, onSuccess, onCancel, initialData, isEditing =
 
         {/* Nome do Produto */}
         <div>
-          <label htmlFor="nome" className="block text-sm font-medium text-gray-700 mb-1">
+          <label
+            htmlFor="nome"
+            className="block text-sm font-medium text-gray-700 mb-1">
             Nome do Produto *
           </label>
           <input
@@ -159,7 +180,9 @@ const AddProductForm = ({ onClose, onSuccess, onCancel, initialData, isEditing =
 
         {/* Categoria */}
         <div>
-          <label htmlFor="categoria" className="block text-sm font-medium text-gray-700 mb-1">
+          <label
+            htmlFor="categoria"
+            className="block text-sm font-medium text-gray-700 mb-1">
             Categoria *
           </label>
           <select
@@ -168,10 +191,9 @@ const AddProductForm = ({ onClose, onSuccess, onCancel, initialData, isEditing =
             value={formData.categoria}
             onChange={handleChange}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
-          >
+            required>
             <option value="">Selecione uma categoria</option>
-            {categorias.map(categoria => (
+            {categorias.map((categoria) => (
               <option key={categoria} value={categoria}>
                 {categoria}
               </option>
@@ -181,7 +203,9 @@ const AddProductForm = ({ onClose, onSuccess, onCancel, initialData, isEditing =
 
         {/* Fornecedor */}
         <div>
-          <label htmlFor="fornecedor_id" className="block text-sm font-medium text-gray-700 mb-1">
+          <label
+            htmlFor="fornecedor_id"
+            className="block text-sm font-medium text-gray-700 mb-1">
             Fornecedor *
           </label>
           <select
@@ -190,10 +214,9 @@ const AddProductForm = ({ onClose, onSuccess, onCancel, initialData, isEditing =
             value={formData.fornecedor_id}
             onChange={handleChange}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
-          >
+            required>
             <option value="">Selecione um fornecedor</option>
-            {fornecedores.map(fornecedor => (
+            {fornecedores.map((fornecedor) => (
               <option key={fornecedor.id} value={fornecedor.id}>
                 {fornecedor.nome} ({fornecedor.codigo})
               </option>
@@ -208,18 +231,17 @@ const AddProductForm = ({ onClose, onSuccess, onCancel, initialData, isEditing =
           type="button"
           variant="outline"
           onClick={onClose || onCancel}
-          disabled={loading}
-        >
+          disabled={loading}>
           Cancelar
         </Button>
-        <Button
-          type="submit"
-          disabled={loading}
-        >
-          {loading 
-            ? (isEditing ? 'Atualizando...' : 'Adicionando...') 
-            : (isEditing ? 'Atualizar Produto' : 'Adicionar Produto')
-          }
+        <Button type="submit" disabled={loading}>
+          {loading
+            ? isEditing
+              ? "Atualizando..."
+              : "Adicionando..."
+            : isEditing
+            ? "Atualizar Produto"
+            : "Adicionar Produto"}
         </Button>
       </div>
     </form>
