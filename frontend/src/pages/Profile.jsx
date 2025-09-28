@@ -207,7 +207,7 @@ const Profile = () => {
                   <div className="relative inline-block">
                     {formData.foto_perfil ? (
                       <img 
-                        src={formData.foto_perfil.startsWith('http') ? formData.foto_perfil : `http://localhost:5000/${formData.foto_perfil}`} 
+                        src={formData.foto_perfil.startsWith('http') ? formData.foto_perfil : `${API_ORIGIN}/${formData.foto_perfil}`} 
                         alt="Foto do perfil"
                         className="w-32 h-32 rounded-full object-cover mx-auto border-4 border-gray-200"
                       />
@@ -247,7 +247,6 @@ const Profile = () => {
                   )}
                   {userData?.telefone && (
                     <p className="text-sm text-gray-500 flex items-center justify-center gap-1 mt-1">
-                      <Phone className="h-4 w-4" />
                       {userData.telefone}
                     </p>
                   )}

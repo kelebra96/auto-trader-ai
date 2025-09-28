@@ -184,7 +184,7 @@ export const alertService = {
   // Marcar alerta como lido
   marcarAlertaLido: async (alertaId) => {
     try {
-      const response = await api.put(`/alertas/${alertaId}/marcar-lido`);
+      const response = await api.patch(`/alertas/${alertaId}/marcar-lido`);
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.error || 'Erro ao marcar alerta como lido');
@@ -194,7 +194,7 @@ export const alertService = {
   // Marcar todos os alertas como lidos
   marcarTodosLidos: async () => {
     try {
-      const response = await api.put('/alertas/marcar-todos-lidos');
+      const response = await api.patch('/alertas/marcar-todos-lidos');
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.error || 'Erro ao marcar todos os alertas como lidos');
@@ -204,8 +204,12 @@ export const alertService = {
   // Gerar alertas automáticos
   gerarAlertas: async () => {
     try {
-      const response = await api.post('/alertas/gerar');
-      return response.data;
+      const estoqueResponse = await api.post('/alertas/gerar/estoque-baixo', {});
+      const vencendoResponse = await api.post('/alertas/gerar/produtos-vencendo', {});
+      return {
+        estoque_baixo: estoqueResponse.data,
+        produtos_vencendo: vencendoResponse.data
+      };
     } catch (error) {
       throw new Error(error.response?.data?.error || 'Erro ao gerar alertas');
     }
@@ -214,7 +218,7 @@ export const alertService = {
   // Resolver alerta (manter compatibilidade)
   resolverAlerta: async (alertaId) => {
     try {
-      const response = await api.put(`/alertas/${alertaId}/marcar-lido`);
+      const response = await api.patch(`/alertas/${alertaId}/marcar-lido`);
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.error || 'Erro ao resolver alerta');
@@ -227,8 +231,8 @@ export const alertConfigService = {
   // Listar configurações de alertas
   getConfiguracoes: async () => {
     try {
-      const response = await api.get('/configuracoes-alertas');
-      return response.data.configuracoes;
+      const response = await api.get('/configuracoes/alertas');
+      return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.error || 'Erro ao carregar configurações de alertas');
     }
@@ -237,7 +241,7 @@ export const alertConfigService = {
   // Criar ou atualizar configuração de alerta
   salvarConfiguracao: async (configuracao) => {
     try {
-      const response = await api.post('/configuracoes-alertas', configuracao);
+      const response = await api.put('/configuracoes/alertas', configuracao);
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.error || 'Erro ao salvar configuração de alerta');
@@ -247,7 +251,7 @@ export const alertConfigService = {
   // Criar configuração de alerta (alias para salvarConfiguracao)
   createAlertConfig: async (configuracao) => {
     try {
-      const response = await api.post('/configuracoes-alertas', configuracao);
+      const response = await api.put('/configuracoes/alertas', configuracao);
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.error || 'Erro ao criar configuração de alerta');
@@ -541,8 +545,8 @@ export const configService = {
   // Obter configurações do usuário
   getConfiguracoes: async () => {
     try {
-      const response = await api.get('/configuracoes');
-      return response.data.configuracao;
+      const response = await api.get('/configuracoes/usuario');
+      return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.error || 'Erro ao carregar configurações');
     }
@@ -551,7 +555,7 @@ export const configService = {
   // Salvar configurações do usuário
   salvarConfiguracoes: async (configuracoes) => {
     try {
-      const response = await api.put('/configuracoes', configuracoes);
+      const response = await api.put('/configuracoes/usuario', configuracoes);
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.error || 'Erro ao salvar configurações');

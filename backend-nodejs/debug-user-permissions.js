@@ -1,13 +1,37 @@
 const { User, Permission, UserPermission } = require('./src/models');
+// Allow passing email or user id via CLI
+const targetEmail = process.argv[2] || process.env.DEBUG_EMAIL || null;
+const targetId = process.argv[3] ? parseInt(process.argv[3], 10) : (process.env.DEBUG_USER_ID ? parseInt(process.env.DEBUG_USER_ID, 10) : null);
+
+async function resolveUser() {
+  if (targetId) {
+    const user = await User.findByPk(targetId);
+    return user;
+  }
+  if (targetEmail) {
+    const user = await User.findOne({ where: { email: targetEmail } });
+    return user;
+  }
+  // fallback: first user
+  const user = await User.findOne();
+  return user;
+}
 
 async function debugUserPermissions() {
   try {
     console.log('🔍 Debugando permissões específicas do usuário...\n');
 
+    const user = await resolveUser();
+    if (!user) {
+      console.log('❌ Usuário não encontrado com os parâmetros fornecidos');
+      return;
+    }
+    console.log(`📧 Usuário alvo: ${user.email} (ID: ${user.id})`);
+
     // 1. Verificar permissões específicas na tabela UserPermissions
     console.log('1. Verificando tabela UserPermissions:');
     const userPermissions = await UserPermission.findAll({
-      where: { user_id: 2 },
+      where: { user_id: user.id },
       include: [
         {
           model: Permission,
@@ -23,7 +47,7 @@ async function debugUserPermissions() {
 
     // 2. Testar consulta com include
     console.log('\n2. Testando consulta com include:');
-    const userWithPermissions = await User.findByPk(2, {
+    const userWithPermissions = await User.findByPk(user.id, {
       include: [
         {
           model: Permission,
@@ -40,11 +64,9 @@ async function debugUserPermissions() {
     
     if (userWithPermissions.permissions) {
       userWithPermissions.permissions.forEach(permission => {
-        console.log(`  - ${permission.name}:`);
-        console.log(`    permission object:`, JSON.stringify(permission.toJSON(), null, 2));
-        const userPermission = permission.UserPermissions;
-        console.log(`    UserPermissions:`, userPermission);
-        console.log(`    granted:`, userPermission ? userPermission.granted : 'undefined');
+        const permJson = permission.toJSON();
+        const grantedAttr = permJson.UserPermissions?.granted ?? permJson.userPermission?.granted;
+        console.log(`  - ${permission.name}: granted=${grantedAttr}`);
       });
     }
 

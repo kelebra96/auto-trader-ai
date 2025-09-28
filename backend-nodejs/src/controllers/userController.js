@@ -4,6 +4,8 @@ const logger = require('../utils/logger');
 const { AppError, asyncHandler } = require('../middleware/errorHandler');
 const bcrypt = require('bcryptjs');
 const { Op } = require('sequelize');
+const path = require('path');
+const fs = require('fs');
 
 // Listar usuários
 const getUsers = asyncHandler(async (req, res) => {
@@ -471,6 +473,50 @@ const updateCurrentUserProfile = asyncHandler(async (req, res) => {
   });
 });
 
+// Upload de foto de perfil do usuário
+const uploadUserPhoto = asyncHandler(async (req, res) => {
+  if (!req.file) {
+    throw new AppError('Nenhum arquivo enviado', 400);
+  }
+
+  const userId = req.params.id;
+  const user = await User.findByPk(userId);
+  if (!user) {
+    throw new AppError('Usuário não encontrado', 404);
+  }
+
+  // Caminho relativo para servir via /uploads
+  const filename = req.file.filename;
+  const relativePath = `uploads/profile_photos/${filename}`;
+
+  // Remover arquivo antigo se existir e estiver na pasta uploads
+  try {
+    if (user.foto_perfil && user.foto_perfil.startsWith('uploads/')) {
+      const oldPath = path.join(__dirname, '../../', user.foto_perfil);
+      if (fs.existsSync(oldPath)) {
+        fs.unlinkSync(oldPath);
+      }
+    }
+  } catch (err) {
+    logger.warn('Falha ao remover foto antiga do usuário', { error: err.message, userId });
+  }
+
+  await user.update({ foto_perfil: relativePath });
+
+  logger.info('Foto de perfil atualizada', { userId, file: relativePath });
+
+  const updatedUser = await User.findByPk(user.id, {
+    include: [
+      { model: UserProfile, as: 'profile', attributes: ['id', 'name', 'description'] }
+    ],
+    attributes: { exclude: ['senha'] }
+  });
+
+  res.json({
+    success: true,
+    data: updatedUser
+  });
+});
 module.exports = {
   getUsers,
   getUser,
@@ -482,5 +528,6 @@ module.exports = {
   assignProfile,
   manageUserPermission,
   getCurrentUserProfile,
-  updateCurrentUserProfile
+  updateCurrentUserProfile,
+  uploadUserPhoto
 };

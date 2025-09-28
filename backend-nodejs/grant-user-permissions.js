@@ -1,16 +1,19 @@
 const { User, Permission, UserPermission } = require('./src/models');
+// Read target email from CLI arg or env, fallback to default
+const targetEmail = process.argv[2] || process.env.GRANT_EMAIL || 'testuser@example.com';
 
 async function grantUserPermissions() {
   try {
     console.log('🔐 Concedendo permissões de usuários...');
+    console.log(`📧 Alvo: ${targetEmail}`);
     
-    // Buscar o usuário de teste
+    // Buscar o usuário pelo e-mail alvo
     const user = await User.findOne({
-      where: { email: 'testuser@example.com' }
+      where: { email: targetEmail }
     });
     
     if (!user) {
-      console.log('❌ Usuário não encontrado');
+      console.log(`❌ Usuário não encontrado: ${targetEmail}`);
       return;
     }
     

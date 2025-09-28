@@ -8,7 +8,7 @@ const Alerts = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showConfig, setShowConfig] = useState(false);
-  const [configurations, setConfigurations] = useState([]);
+  const [configurations, setConfigurations] = useState({});
   const navigate = useNavigate();
 
   // Carregar alertas
@@ -27,22 +27,24 @@ const Alerts = () => {
   // Carregar configurações
   const loadConfigurations = async () => {
     try {
-      const configs = await alertConfigService.getConfiguracoes();
+      const cfg = await alertConfigService.getConfiguracoes();
       
-      // Garantir que valores booleanos sejam convertidos corretamente
-      const configsWithBooleans = {
-        ...configs,
+      const mappedConfigs = {
         vencimento: {
-          ...configs.vencimento,
-          ativo: Boolean(configs.vencimento?.ativo)
+          ativo: Boolean(cfg.alerta_produto_vencendo) || Boolean(cfg.alerta_produto_vencido),
+          dias_antecedencia: Number(cfg.dias_aviso_vencimento || 7),
+          notificar_email: true,
+          notificar_sistema: true
         },
         estoque_baixo: {
-          ...configs.estoque_baixo,
-          ativo: Boolean(configs.estoque_baixo?.ativo)
+          ativo: Boolean(cfg.alerta_estoque_baixo),
+          estoque_minimo: 5,
+          notificar_email: true,
+          notificar_sistema: true
         }
       };
       
-      setConfigurations(configsWithBooleans);
+      setConfigurations(mappedConfigs);
     } catch (err) {
       console.error('Erro ao carregar configurações:', err);
     }
@@ -92,18 +94,19 @@ const Alerts = () => {
     loadConfigurations();
   }, []);
 
-  const getUrgencyColor = (urgencia) => {
-    switch (urgencia) {
-      case 'alta': return 'bg-red-100 text-red-800 border-red-200';
-      case 'media': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'baixa': return 'bg-blue-100 text-blue-800 border-blue-200';
+  const getUrgencyColor = (tipo) => {
+    switch (tipo) {
+      case 'produto_vencido': return 'bg-red-100 text-red-800 border-red-200';
+      case 'produto_vencendo': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'estoque_baixo': return 'bg-blue-100 text-blue-800 border-blue-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
   const getIcon = (tipo) => {
     switch (tipo) {
-      case 'vencimento': return <Calendar className="h-5 w-5" />;
+      case 'produto_vencendo': return <Calendar className="h-5 w-5" />;
+      case 'produto_vencido': return <Calendar className="h-5 w-5" />;
       case 'estoque_baixo': return <Package className="h-5 w-5" />;
       default: return <AlertTriangle className="h-5 w-5" />;
     }
@@ -174,7 +177,7 @@ const Alerts = () => {
         {alerts.map((alert) => (
           <div
             key={alert.id}
-            className={`p-4 border rounded-lg ${getUrgencyColor(alert.urgencia)} ${
+            className={`p-4 border rounded-lg ${getUrgencyColor(alert.tipo)} ${
               alert.lido ? 'opacity-60' : ''
             }`}
           >
@@ -186,9 +189,9 @@ const Alerts = () => {
                 <div className="flex items-start justify-between">
                   <div>
                     <h3 className="font-medium">{alert.titulo}</h3>
-                    <p className="text-sm mt-1">{alert.descricao}</p>
+                    <p className="text-sm mt-1">{alert.mensagem}</p>
                     <p className="text-xs text-gray-600 mt-1">
-                      {formatDate(alert.created_at)}
+                      {formatDate(alert.createdAt)}
                     </p>
                   </div>
                   {alert.lido && (
@@ -258,33 +261,26 @@ const AlertConfigPanel = ({ configurations, onSave, onClose }) => {
   });
 
   useEffect(() => {
-    // Carregar configurações existentes
-    configurations.forEach(config => {
-      setConfigs(prev => ({
-        ...prev,
-        [config.tipo_alerta]: {
-          ativo: config.ativo,
-          dias_antecedencia: config.dias_antecedencia || 7,
-          estoque_minimo: config.estoque_minimo || 5,
-          notificar_email: config.notificar_email,
-          notificar_sistema: config.notificar_sistema
-        }
-      }));
-    });
+    if (!configurations || Object.keys(configurations).length === 0) return;
+    setConfigs(prev => ({
+      vencimento: {
+        ...prev.vencimento,
+        ...configurations.vencimento
+      },
+      estoque_baixo: {
+        ...prev.estoque_baixo,
+        ...configurations.estoque_baixo
+      }
+    }));
   }, [configurations]);
 
   const handleSave = async () => {
     try {
-      // Salvar configuração de vencimento
       await alertConfigService.salvarConfiguracao({
-        tipo_alerta: 'vencimento',
-        ...configs.vencimento
-      });
-
-      // Salvar configuração de estoque baixo
-      await alertConfigService.salvarConfiguracao({
-        tipo_alerta: 'estoque_baixo',
-        ...configs.estoque_baixo
+        dias_aviso_vencimento: configs.vencimento.dias_antecedencia,
+        alerta_estoque_baixo: configs.estoque_baixo.ativo,
+        alerta_produto_vencendo: configs.vencimento.ativo,
+        alerta_produto_vencido: configs.vencimento.ativo
       });
 
       onSave();
