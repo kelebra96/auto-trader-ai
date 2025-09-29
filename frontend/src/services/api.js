@@ -132,10 +132,18 @@ export const productService = {
   // Deletar produto
   deleteProduct: async (productId) => {
     try {
-      const response = await api.delete(`/produtos/${productId}`);
+      const parsedId = parseInt(productId, 10);
+      if (!Number.isFinite(parsedId) || parsedId <= 0) {
+        throw new Error('ID do produto inválido para exclusão');
+      }
+
+      console.debug('[productService.deleteProduct] Deletando produto ID:', parsedId);
+
+      const response = await api.delete(`/produtos/${parsedId}`);
       return response.data;
     } catch (error) {
-      throw new Error(error.response?.data?.error || 'Erro ao deletar produto');
+      // Preserve full axios error so callers can inspect error.response.status (e.g., to handle 403 permission errors)
+      throw error;
     }
   },
 

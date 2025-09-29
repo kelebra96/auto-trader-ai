@@ -64,16 +64,19 @@ const corsOptions = {
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
 };
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 100, // máximo 100 requisições por IP por janela
-  message: {
-    error: "Muitas requisições deste IP, tente novamente em 15 minutos.",
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+// Rate limiting (desabilitado em desenvolvimento)
+const isProduction = process.env.NODE_ENV === "production";
+const limiter = isProduction
+  ? rateLimit({
+      windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || String(15 * 60 * 1000), 10), // default 15 minutos
+      max: parseInt(process.env.RATE_LIMIT_MAX || "100", 10), // default 100 requisições por IP
+      message: {
+        error: "Muitas requisições deste IP, tente novamente em 15 minutos.",
+      },
+      standardHeaders: true,
+      legacyHeaders: false,
+    })
+  : (req, res, next) => next();
 
 // Middlewares globais
 app.use(

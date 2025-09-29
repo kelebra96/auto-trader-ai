@@ -7,9 +7,11 @@ import AddProductForm from '../components/forms/AddProductForm';
 import { useNotifications } from '../contexts/NotificationContext';
 import { formatCurrency, formatDate, getExpiryStatus, getExpiryStatusColor, getExpiryStatusText } from '../lib/utils';
 import { productService } from '../services/api';
+import { usePermissions } from '../contexts/PermissionsContext';
 
 const ProductList = () => {
   const { addNotification } = useNotifications();
+  const { canDeleteProducts } = usePermissions();
   
   const [products, setProducts] = useState([]);
 
@@ -84,11 +86,12 @@ const ProductList = () => {
 
     // Filtro por busca
     if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
       filtered = filtered.filter(product =>
-        product.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.categoria.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.fornecedor.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.codigo_barras.includes(searchTerm)
+        product.nome?.toLowerCase().includes(searchLower) ||
+        product.categoria?.toLowerCase().includes(searchLower) ||
+        product.fornecedor?.nome?.toLowerCase().includes(searchLower) ||
+        (product.codigo_barras && product.codigo_barras.includes(searchTerm))
       );
     }
 
@@ -106,12 +109,12 @@ const ProductList = () => {
     }
 
     if (filters.estoqueMin) {
-      filtered = filtered.filter(product => product.estoque >= parseInt(filters.estoqueMin));
+      filtered = filtered.filter(product => (product.estoque_atual ?? 0) >= parseInt(filters.estoqueMin));
     }
 
-    if (filters.estoqueMax) {
-      filtered = filtered.filter(product => product.estoque <= parseInt(filters.estoqueMax));
-    }
+     if (filters.estoqueMax) {
+      filtered = filtered.filter(product => (product.estoque_atual ?? 0) <= parseInt(filters.estoqueMax));
+     }
 
     if (filters.status) {
       filtered = filtered.filter(product => {
@@ -122,7 +125,7 @@ const ProductList = () => {
 
     if (filters.fornecedor) {
       filtered = filtered.filter(product => 
-        product.fornecedor.toLowerCase().includes(filters.fornecedor.toLowerCase())
+        product.fornecedor?.nome?.toLowerCase().includes(filters.fornecedor.toLowerCase())
       );
     }
 
@@ -155,24 +158,42 @@ const ProductList = () => {
 
   const handleDeleteProduct = async () => {
     if (deletingProduct) {
+      // Validação defensiva: garantir que o ID exista e seja numérico válido
+      const parsedId = parseInt(deletingProduct?.id, 10);
+      if (!Number.isFinite(parsedId) || parsedId <= 0) {
+        addNotification({
+          type: 'error',
+          title: 'Erro',
+          message: 'Produto inválido: ID é obrigatório e deve ser válido para exclusão.'
+        });
+        setShowDeleteModal(false);
+        setDeletingProduct(null);
+        return;
+      }
+
       try {
-        await productService.deleteProduct(deletingProduct.id);
-        setProducts(prev => prev.filter(p => p.id !== deletingProduct.id));
+        await productService.deleteProduct(parsedId);
+        setProducts(prev => prev.filter(p => (parseInt(p.id, 10) !== parsedId)));
         addNotification({
           type: 'success',
           title: 'Sucesso',
           message: `Produto "${deletingProduct.nome}" removido com sucesso!`
         });
       } catch (error) {
+        const backendMsg = error?.response?.data?.error || error?.response?.data?.message;
+        const message = error?.response?.status === 403
+          ? 'Você não tem permissão para excluir produtos.'
+          : 'Erro ao deletar produto: ' + (backendMsg || error.message);
+
         addNotification({
           type: 'error',
           title: 'Erro',
-          message: 'Erro ao deletar produto: ' + error.message
+          message
         });
       } finally {
-        setShowDeleteModal(false);
-        setDeletingProduct(null);
-      }
+         setShowDeleteModal(false);
+         setDeletingProduct(null);
+       }
     }
   };
 
@@ -478,7 +499,7 @@ const ProductList = () => {
                   return (
                     <tr key={product.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{product.codigo}</div>
+                        <div className="text-sm font-medium text-gray-900">{product.codigo_barras || '—'}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">{product.nome}</div>
@@ -487,7 +508,7 @@ const ProductList = () => {
                         <div className="text-sm text-gray-900">{product.categoria}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{product.fornecedor_nome || 'N/A'}</div>
+                        <div className="text-sm text-gray-900">{product.fornecedor?.nome || 'N/A'}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex space-x-2">
@@ -500,15 +521,17 @@ const ProductList = () => {
                             <Edit className="h-3 w-3" />
                             Editar
                           </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openDeleteModal(product)}
-                            className="flex items-center gap-1 text-red-600 hover:text-red-700 hover:border-red-300"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                            Excluir
-                          </Button>
+                          {canDeleteProducts() && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openDeleteModal(product)}
+                              className="flex items-center gap-1 text-red-600 hover:text-red-700 hover:border-red-300"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                              Excluir
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>
