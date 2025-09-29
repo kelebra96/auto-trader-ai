@@ -1,0 +1,9 @@
+# Environment files (do NOT commit secrets)
+.env
+.env.*
+*.env
+backend-nodejs/.env
+frontend/.env
+
+# Frontend build output
+frontend/dist/
